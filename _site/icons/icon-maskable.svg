@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<!-- Maskable variant: same mark scaled into the 80% safe zone so Android
+	     launcher shapes (circle, squircle, rounded square) never clip the hexagon. -->
+	<defs>
+		<linearGradient id="goldfill" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#ffe9b8"/>
+			<stop offset="0.55" stop-color="#f0b354"/>
+			<stop offset="1" stop-color="#d8952e"/>
+		</linearGradient>
+	</defs>
+	<rect width="512" height="512" fill="#0b0a08"/>
+	<!-- pointy-top hexagon, R=150, centered -->
+	<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181" fill="url(#goldfill)"/>
+	<polygon points="256,190 328,314 184,314" fill="#0b0a08"/>
+</svg>

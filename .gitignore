@@ -1,0 +1,27 @@
+# ============================================================
+#  .gitignore for kiande.com — 30 Days of Dahl
+# ============================================================
+#
+#  IMPORTANT — this project differs from the Eleventy boilerplate:
+#  _site/ is NOT generated output here. There is no build step;
+#  _site/ is the hand-authored web root (Laragon vhost points at it)
+#  and MUST stay in git. Do not add _site/ to this file.
+# ============================================================
+
+# --- Scratch / working folders (Daniel's conventions) ---
+_temp/
+_md/TESTING.md
+
+# --- Node (only ever used for one-off asset tooling, never runtime) ---
+node_modules/
+
+# --- OS junk ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# --- Editor files ---
+*.swp
+*.swo
+.idea/
+.vscode/

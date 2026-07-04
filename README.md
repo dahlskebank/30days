@@ -1,0 +1,69 @@
+# 30 DAYS OF DAHL — kiande.com
+
+A single-user, forever-running daily discipline tracker styled after the
+**Deus Ex: Human Revolution** UI. Installable PWA, fully offline after first
+load, all data in localStorage on the device. Based on *30 Days of
+Discipline* by Victor Pride. Full build specification in [SPEC.md](SPEC.md).
+
+## How this project differs from the dfault boilerplate
+
+This is **not** an Eleventy project. The spec demands vanilla HTML/CSS/JS
+with **no framework, no build step, no dependencies** — so there is no
+`src/`, no `package.json`, and nothing to build.
+
+`_site/` is kept as the web-root folder name purely so the Laragon vhost
+and deploy flow match every other project — but here it is **hand-authored
+source, committed to git**, not generated output. Edit files in `_site/`
+directly; refresh the browser; that's the whole pipeline.
+
+```
+kiande.com/
+├── SPEC.md                  the build specification (source of truth)
+├── README.md                this file
+└── _site/                   ← web root (Laragon vhost + deploy target)
+    ├── index.html           the entire app shell — all five views live here
+    ├── styles.css           all styling (design tokens at the top)
+    ├── app.js               entry point: init, view switching, rendering
+    ├── storage.js           ALL persistence (localStorage + migrations)
+    ├── model.js             date math, tiers, streak, protocol derivation
+    ├── sound.js             Web Audio synth blips (no audio assets)
+    ├── fx.js                boot sequence, decode text, parallax
+    ├── sw.js                service worker (cache-first app shell)
+    ├── manifest.webmanifest PWA manifest
+    ├── fonts/               self-hosted Rajdhani + Chakra Petch (woff2)
+    ├── icons/               PWA icons, favicon, apple-touch-icon
+    ├── assets/img/          og-image, QR code for the desktop view
+    ├── .htaccess            Apache hardening (Tier 1 static site)
+    ├── 404.html / 403.html  error pages
+    └── robots.txt, sitemap.xml, humans.txt, .well-known/security.txt
+```
+
+## Local development (Laragon)
+
+- Vhost: `E:\vlaragon\etc\apache2\sites-enabled\kiande.conf`
+  → doc root `E:/www/dev/kiande.com/_site`
+- Hosts entry: `127.0.0.1  kiande.com`
+- Browse to **https://kiande.com** (the Laragon root cert is in the Windows
+  trust store, so HTTPS works locally — which the service worker requires).
+- After changing `sw.js`-cached files, bump the `CACHE` version constant in
+  `sw.js` so the service worker picks up the new shell.
+
+## Google Analytics
+
+The GA4 snippet in `index.html` is gated behind a `gaId` constant near the
+top of the inline script. It ships **empty** (analytics disabled). Create a
+GA4 property for kiande.com and paste the `G-XXXXXXXXXX` id there to enable.
+
+## Updating the deployed app
+
+The service worker uses a versioned cache-first strategy: bump `CACHE` in
+`sw.js` with every deploy or returning phones will keep the old shell.
+
+## Version
+
+App version lives in one place: the `APP_VERSION` constant in `app.js`
+(shown in the System view and the desktop footer).
+
+## License
+
+WTFPL — see the license text at http://www.wtfpl.net/

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<!-- 30 Days of Dahl app icon — gold hexagon containing the ▲ on void black (SPEC §11).
+	     Hexagon = time & energy, triangle = action & state (SPEC §4 symbol grammar). -->
+	<defs>
+		<linearGradient id="goldfill" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0" stop-color="#ffe9b8"/>
+			<stop offset="0.55" stop-color="#f0b354"/>
+			<stop offset="1" stop-color="#d8952e"/>
+		</linearGradient>
+	</defs>
+	<rect width="512" height="512" fill="#0b0a08"/>
+	<!-- pointy-top hexagon, R=205, centered -->
+	<polygon points="256,51 433.5,153.5 433.5,358.5 256,461 78.5,358.5 78.5,153.5" fill="url(#goldfill)"/>
+	<!-- the ▲, cut from the void -->
+	<polygon points="256,165 354,335 158,335" fill="#0b0a08"/>
+</svg>

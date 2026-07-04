@@ -1,0 +1,116 @@
+# ============================================================
+#  .htaccess for 30 Days of Dahl — https://kiande.com
+#  Tier 1 static one-pager: CSP intentionally skipped, HSTS
+#  ships commented out (enable after HTTPS is verified green
+#  on production for a while).
+# ============================================================
+
+# --- Error documents ---
+ErrorDocument 404 /404.html
+ErrorDocument 403 /403.html
+
+# --- Security basics ---
+Options -Indexes -MultiViews
+ServerSignature Off
+AddDefaultCharset UTF-8
+FileETag None
+
+# --- Protect .htaccess from being read ---
+<Files .htaccess>
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+</Files>
+
+# --- Force HTTPS (the PWA requires it anyway) ---
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteCond %{HTTPS} off
+	RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+# --- www → non-www (bare domain is canonical) ---
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+	RewriteRule ^ https://%1%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+# --- Clean URLs: strip index.html from any request ---
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteCond %{THE_REQUEST} \s/+(.*?)index\.html[\s?] [NC]
+	RewriteRule ^ /%1 [R=301,L]
+</IfModule>
+
+# --- Block TRACE and TRACK methods ---
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK)
+	RewriteRule .* - [F]
+</IfModule>
+
+# --- Block query string injection attempts ---
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteBase /
+	RewriteCond %{QUERY_STRING} (\"|%22).*(<|>|%3) [NC,OR]
+	RewriteCond %{QUERY_STRING} (javascript:).*(\;) [NC,OR]
+	RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3) [NC,OR]
+	RewriteCond %{QUERY_STRING} (\;|'|\"|%22).*(union|select|insert|drop|update|md5|benchmark) [NC,OR]
+	RewriteCond %{QUERY_STRING} (base64_encode|localhost) [NC,OR]
+	RewriteCond %{QUERY_STRING} (boot\.ini|etc/passwd) [NC,OR]
+	RewriteCond %{QUERY_STRING} (GLOBALS|REQUEST)(=|\[|%) [NC]
+	RewriteRule .* - [F]
+</IfModule>
+
+# --- Block suspicious file extensions ---
+<IfModule mod_alias.c>
+	RedirectMatch 403 (eval\(|base64_encode|proc/self/environ)
+	RedirectMatch 403 \.(exe|dll|mdb|sql|ini|rar|cfg)$
+</IfModule>
+
+# --- MIME types ---
+AddType image/svg+xml svg svgz
+AddType font/woff2 woff2
+AddType application/manifest+json webmanifest
+
+# --- Security headers ---
+# Four headers on; CSP + HSTS intentionally skipped for a Tier 1 site.
+<IfModule mod_headers.c>
+	Header set X-Content-Type-Options "nosniff"
+	Header set X-Frame-Options "SAMEORIGIN"
+	Header set Referrer-Policy "strict-origin-when-cross-origin"
+	Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+	# Uncomment after HTTPS has been verified on production for a while.
+	# Start with a short max-age for a day, then bump to 31536000 (1 year).
+	# Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	# The service worker itself must never be cached long — updates depend on it
+	<Files "sw.js">
+		Header set Cache-Control "no-cache"
+	</Files>
+</IfModule>
+
+# --- Gzip compression ---
+<IfModule mod_deflate.c>
+	AddOutputFilterByType DEFLATE text/html text/css application/javascript
+	AddOutputFilterByType DEFLATE application/json application/manifest+json image/svg+xml
+</IfModule>
+
+# --- Cache static assets ---
+# No cache-busting query strings in this project, so CSS/JS get a short
+# TTL; the service worker handles real caching for returning visitors.
+<IfModule mod_expires.c>
+	ExpiresActive On
+	ExpiresByType text/html "access plus 0 seconds"
+	ExpiresByType application/manifest+json "access plus 1 day"
+	ExpiresByType text/css "access plus 1 day"
+	ExpiresByType application/javascript "access plus 1 day"
+	ExpiresByType image/jpeg "access plus 1 year"
+	ExpiresByType image/png "access plus 1 year"
+	ExpiresByType image/svg+xml "access plus 1 year"
+	ExpiresByType image/x-icon "access plus 1 year"
+	ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
