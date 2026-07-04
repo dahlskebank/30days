@@ -1,7 +1,7 @@
 {
-	"name": "30 Days of Dahl",
-	"short_name": "30 Days",
-	"description": "A forever-running daily discipline tracker. The log runs forever — the protocol is the crucible.",
+	"name": "Protocol",
+	"short_name": "Protocol",
+	"description": "Discipline · Augmented — a forever-running daily discipline tracker. The log runs forever; the protocol is the crucible.",
 	"id": "/",
 	"start_url": "/",
 	"scope": "/",

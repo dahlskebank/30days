@@ -163,22 +163,9 @@ export function cascade(hiveEl){
 	}, hexes.length * 25 + 400);
 }
 
-/* View transitions (§9): 1-frame hologram flicker on tab switch;
-   full-screen views slide-snap in from the right. */
-export function tabFlicker(el){
-	if (!enabled || !el) return;
-	el.classList.remove("flick");
-	void el.offsetWidth;
-	el.classList.add("flick");
-	setTimeout(() => el.classList.remove("flick"), 180);
-}
-export function fullSlide(el){
-	if (!enabled || !el) return;
-	el.classList.remove("slidein");
-	void el.offsetWidth;
-	el.classList.add("slidein");
-	setTimeout(() => el.classList.remove("slidein"), 260);
-}
+/* View transitions: the old 1-frame hologram flicker is gone — tabs now
+   physically slide (owner feedback: the flicker read as a glitch). The
+   slide itself lives in app.js/styles.css as the swipe track. */
 
 /* ---------- ambient (SPEC §9) ----------
    Every 30–90s ONE small shard detaches and floats 20px before fading.

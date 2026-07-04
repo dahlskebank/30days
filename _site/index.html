@@ -4,7 +4,7 @@
 		<meta charset="utf-8" />
 		<!-- viewport-fit=cover lets the app paint behind notches; safe-area insets in CSS keep
 	     content clear. No maximum-scale: blocking pinch-zoom is an accessibility regression;
-	     touch-action:manipulation on the controls prevents accidental double-tap zoom instead. -->
+	     touch-action on the controls prevents accidental double-tap zoom instead. -->
 		<meta
 			name="viewport"
 			content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -60,6 +60,13 @@
 		<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 		<link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+		<!-- iOS add-to-home-screen: Android uses the manifest's display:standalone,
+	     iOS ignores it and needs these instead (pattern ported from darkdictator.com) -->
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="Protocol" />
 
 		<!-- Self-hosted fonts: preload the two that paint first (title + body) -->
 		<link
@@ -170,16 +177,12 @@
 
 		<!-- Boot overlay (SPEC §9) — once per session, ~600ms, tap to skip.
 	     fx.js drives it; with FX off it is removed instantly. -->
-		<div class="boot" id="boot" aria-hidden="true">
-			<div class="boot-rule"></div>
-			<div class="boot-title" id="bootTitle"></div>
-		</div>
+		<div class="boot" id="boot" aria-hidden="true"></div>
 
 		<!-- ======================================================
-	     Desktop command deck: on phones .deck is invisible
-	     scaffolding (the app fills the screen); ≥ 992px the app
-	     sits centered with a briefing panel to its left and the
-	     site footer below (all desktop-only).
+	     .deck: on phones it is invisible scaffolding around the
+	     app; ≥ 992px the app is hidden entirely and the deck
+	     becomes the "deploy to your phone" landing page.
 	     ====================================================== -->
 		<div class="deck">
 			<aside class="deck-side" aria-label="About this app">
@@ -194,9 +197,9 @@
 						forever — the protocol is the crucible.
 					</p>
 					<p class="deck-copy dim">
-						Built for the phone in your pocket, not the screen you're looking
-						at. It works here too — but the real thing installs to your home
-						screen and runs fully offline.
+						This is a phone app. There is no desktop version, no account and no
+						cloud — the entire thing installs to your home screen and lives in
+						your phone's own storage, fully offline.
 					</p>
 				</div>
 				<div class="deck-qr">
@@ -211,12 +214,13 @@
 			</aside>
 
 			<!-- ==================================================
-		     THE APP — everything inside .app is the phone UI.
+		     THE APP — fixed-viewport shell: topbar + rule pinned,
+		     the swipe track fills the middle, nav pinned below.
 		     ================================================== -->
 			<div class="app">
 				<header class="topbar">
-					<h1 class="brand"><b>30 Days</b><span>of Dahl</span></h1>
-					<button class="iconbtn" id="systemBtn" aria-label="System">
+					<h1 class="brand"><b>Protocol</b><span>Discipline · Augmented</span></h1>
+					<button class="iconbtn" id="systemBtn" aria-label="System menu">
 						<!-- hex-gear: hexagon + core, per the symbol grammar (hex = system/energy) -->
 						<svg
 							viewBox="0 0 24 24"
@@ -232,87 +236,84 @@
 				</header>
 				<div class="rule"></div>
 
-				<!-- ================= TODAY (SPEC §6.1) ================= -->
-				<main class="screen" id="screen-today">
-					<div class="daymark">
-						<div class="big" id="todayMark">—</div>
-						<div class="date" id="todayDate">—</div>
-					</div>
-
-					<section class="gauge" aria-label="Today's progress">
-						<div class="gauge-top">
-							<div class="count">
-								<span id="gCount">0</span><i> / <span id="gTotal">0</span></i>
+				<!-- swipeable viewport: the three tab screens sit side by side
+			     in .track and slide as one strip (tap a tab or swipe) -->
+				<div class="viewport" id="viewport">
+					<div class="track" id="track">
+						<!-- ================= TODAY (SPEC §6.1) ================= -->
+						<main class="screen" id="screen-today">
+							<div class="daymark">
+								<div class="big" id="todayMark">—</div>
+								<div class="date" id="todayDate">—</div>
 							</div>
-							<div class="readout">
-								<div class="pct" id="gPct">CHARGE 0%</div>
-								<div class="state" id="gState">OFFLINE</div>
+
+							<section class="gauge" aria-label="Today's progress">
+								<div class="gauge-top">
+									<div class="count">
+										<span id="gCount">0</span><i> / <span id="gTotal">0</span></i>
+									</div>
+									<div class="readout">
+										<div class="pct" id="gPct">CHARGE 0%</div>
+										<div class="state" id="gState">OFFLINE</div>
+									</div>
+								</div>
+								<div class="crucible">
+									<div class="molten" id="gMolten"></div>
+									<div class="ticks" id="gTicks"></div>
+								</div>
+								<!-- overcharge hex cells (bonus) + the all-or-nothing passive triangle -->
+								<div class="cells" id="gCells"></div>
+							</section>
+
+							<div id="todayGroups"></div>
+							<button class="ghost edit-loadout" id="editLoadoutBtn">
+								⌁ Edit loadout
+							</button>
+						</main>
+
+						<!-- ================= 30 DAYS (SPEC §6.2) ================= -->
+						<main class="screen" id="screen-prot"></main>
+
+						<!-- ================= CALENDAR (SPEC §6.3) ================= -->
+						<main class="screen" id="screen-cal">
+							<div class="cal-head">
+								<div class="mon" id="calMon">—</div>
+								<div class="cal-nav">
+									<button id="calPrev" aria-label="Previous month">
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<path d="M15 5l-7 7 7 7" />
+										</svg>
+									</button>
+									<button id="calNext" aria-label="Next month">
+										<svg
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										>
+											<path d="M9 5l7 7-7 7" />
+										</svg>
+									</button>
+								</div>
 							</div>
-						</div>
-						<div class="crucible">
-							<div class="molten" id="gMolten"></div>
-							<div class="ticks" id="gTicks"></div>
-						</div>
-						<!-- overcharge hex cells (bonus) + the all-or-nothing passive triangle -->
-						<div class="cells" id="gCells"></div>
-					</section>
-
-					<div id="todayGroups"></div>
-					<button class="ghost edit-loadout" id="editLoadoutBtn">
-						⌁ Edit loadout
-					</button>
-				</main>
-
-				<!-- ================= 30 DAYS (SPEC §6.2) ================= -->
-				<main class="screen" id="screen-prot" hidden></main>
-
-				<!-- ================= CALENDAR (SPEC §6.3) ================= -->
-				<main class="screen" id="screen-cal" hidden>
-					<div class="cal-head">
-						<div class="mon" id="calMon">—</div>
-						<div class="cal-nav">
-							<button id="calPrev" aria-label="Previous month">
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<path d="M15 5l-7 7 7 7" />
-								</svg>
-							</button>
-							<button id="calNext" aria-label="Next month">
-								<svg
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<path d="M9 5l7 7-7 7" />
-								</svg>
-							</button>
-						</div>
+							<div class="dow">
+								<span>Mo</span><span>Tu</span><span>We</span><span>Th</span
+								><span>Fr</span><span>Sa</span><span>Su</span>
+							</div>
+							<div class="calgrid" id="calGrid"></div>
+							<div class="cal-note" id="calNote"></div>
+						</main>
 					</div>
-					<div class="dow">
-						<span>Mo</span><span>Tu</span><span>We</span><span>Th</span
-						><span>Fr</span><span>Sa</span><span>Su</span>
-					</div>
-					<div class="calgrid" id="calGrid"></div>
-					<div class="cal-note" id="calNote"></div>
-				</main>
-
-				<!-- ============ LOADOUT — full-screen view (SPEC §6.4) ============ -->
-				<main class="screen screen-full" id="screen-loadout" hidden></main>
-
-				<!-- ============ SYSTEM — full-screen view (SPEC §6.5) ============ -->
-				<main class="screen screen-full" id="screen-system" hidden></main>
-
-				<!-- chamfered ◄ BACK, pinned bottom-left, only on full-screen views (SPEC §2) -->
-				<button class="backbtn" id="backBtn" hidden>◄ Back</button>
+				</div>
 
 				<!-- ================= NAV (SPEC §2) ================= -->
 				<nav class="nav" id="nav" role="tablist" aria-label="Views">
@@ -399,12 +400,48 @@
 			<p class="deck-legal">
 				© 1983 ⌁ <span id="footYear">2026</span> →
 				<a href="https://danieldahl.com" title="KiAnDe">KiAnDe.com</a> ·
-				<span id="footVersion">v1.0.1</span>
+				<span id="footVersion">v1.1.0</span>
 			</p>
 		</footer>
 
-		<!-- ============ Day editor — hard-edged chamfered HUD panel (SPEC §2) ============ -->
+		<!-- shared scrim for every overlay -->
 		<div class="scrim" id="scrim"></div>
+
+		<!-- ============ SYSTEM — offcanvas drawer, slides in from the left ============ -->
+		<aside
+			class="offcanvas"
+			id="systemPanel"
+			role="dialog"
+			aria-modal="true"
+			aria-label="System menu"
+			hidden
+		>
+			<div class="panel-head">
+				<h2 id="systemTitle">System</h2>
+				<button class="xbtn" id="systemClose" aria-label="Close menu">✕</button>
+			</div>
+			<div class="sub">All data stays on this device</div>
+			<div id="systemBody"></div>
+		</aside>
+
+		<!-- ============ LOADOUT — bottom sheet, slides up ============ -->
+		<div
+			class="hud hud-loadout"
+			id="loadoutHud"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Edit loadout"
+			hidden
+		>
+			<div class="panel-head">
+				<h2 id="loadoutTitle">Loadout</h2>
+				<button class="xbtn" id="loadoutClose" aria-label="Close loadout">✕</button>
+			</div>
+			<div class="sub">Groups &amp; tasks — changes save instantly</div>
+			<div id="loadoutBody"></div>
+		</div>
+
+		<!-- ============ Day editor — hard-edged chamfered HUD panel (SPEC §2) ============ -->
 		<div
 			class="hud"
 			id="dayHud"
@@ -444,8 +481,8 @@
 
 		<noscript>
 			<div class="noscript">
-				30 DAYS OF DAHL requires JavaScript — there is no server, everything
-				runs on this device.
+				This protocol requires JavaScript — there is no server, everything runs
+				on this device.
 			</div>
 		</noscript>
 

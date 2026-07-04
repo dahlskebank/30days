@@ -7,7 +7,7 @@
    cross-origin requests like Google Analytics pass straight through).
    ============================================================ */
 
-const CACHE = "30dod-v1.0.0";
+const CACHE = "30dod-v1.1.0";
 
 /* NOTE: "/" (not "/index.html") — the .htaccess clean-URL rule 301s
    /index.html to /, and a cached redirected response is rejected by
@@ -35,6 +35,24 @@ const SHELL = [
 	"/icons/apple-touch-icon.png",
 	"/favicon.ico",
 	"/assets/img/qr-kiande.svg",
+	/* check-off soundboard — cached so the app stays fully offline */
+	"/sounds/dude_hehhehheh.mp3",
+	"/sounds/dude_idefinitelyneed.mp3",
+	"/sounds/dude_ididntexpectthat.mp3",
+	"/sounds/dude_idontthinkso.mp3",
+	"/sounds/dude_ifeelbetter.mp3",
+	"/sounds/dude_igottafindmore.mp3",
+	"/sounds/dude_iknewit.mp3",
+	"/sounds/dude_iknewit2.mp3",
+	"/sounds/dude_map_found3.mp3",
+	"/sounds/dude_nowtheflowers.mp3",
+	"/sounds/dude_thatcantbegood.wav",
+	"/sounds/dude_thatmustbetheone.mp3",
+	"/sounds/dude_thatsclearly.mp3",
+	"/sounds/dude_yess.mp3",
+	"/sounds/dude_aahthatsthestuff.mp3",
+	"/sounds/oh-good-bale.mp3",
+	"/sounds/serious-sam-extra-life.mp3",
 ];
 
 self.addEventListener("install", event => {

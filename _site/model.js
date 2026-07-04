@@ -80,6 +80,7 @@ export function defaultState(){
 		rolloverHour: 5,
 		sound: true,
 		fx: true,
+		marksRight: false,
 		groups: stdGroups(),
 		log: {},
 		protocols: [],
@@ -216,18 +217,29 @@ export function protocolStatus(state, prot){
 	return { idx, dayNumber: idx + 1, failIdx, status, startD };
 }
 
-/* Calendar marker color for a protocol window (SPEC §6.3, §7):
-   gold  — sustained, or the in-progress unarchived run
-   red   — failed, or archived before sustaining (quitting is failing) */
+/* Calendar marker color for a protocol window:
+   gold — sustained, or the in-progress run · red — failed.
+   There is no abort anymore: a run only ends by failing or sustaining.
+   (prot.aborted is honored for backups from the brief abort-era build.) */
 export function protocolMarker(state, prot){
-	/* an ABORT is recorded on the protocol itself — otherwise a window that
-	   later happens to fill with 100% days would derive SUSTAINED and flip
-	   the marker gold, and the spec says abort-red is permanent */
 	if (prot.aborted) return "red";
 	const { status } = protocolStatus(state, prot);
 	if (status === "FAILED") return "red";
 	if (prot.archived && status !== "SUSTAINED") return "red";
 	return "gold";
+}
+
+/* The calendar window a protocol actually occupies. A FAILED run marks
+   only the days it lived (start … the breaking day) — starting over must
+   not paint 30 red days into the future. Sustained / in-progress runs
+   mark their full 30-day window. */
+export function protocolWindow(state, prot){
+	const startD = dateOf(prot.start);
+	const { status, failIdx } = protocolStatus(state, prot);
+	const endD = (status === "FAILED" && failIdx >= 0)
+		? addDays(startD, failIdx)
+		: addDays(startD, PROT_LEN - 1);
+	return { startD, endD };
 }
 
 /* ---------- restore standard loadout (SPEC §5) ----------

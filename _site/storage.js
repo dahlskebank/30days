@@ -46,6 +46,7 @@ function normalize(raw){
 		rolloverHour: Number.isInteger(raw.rolloverHour) && raw.rolloverHour >= 0 && raw.rolloverHour <= 23 ? raw.rolloverHour : 5,
 		sound: raw.sound !== false,
 		fx: raw.fx !== false,
+		marksRight: raw.marksRight === true, /* checkmark on the right side of task rows */
 		groups: raw.groups.map(g => ({
 			id: String(g.id || "g" + Math.random().toString(36).slice(2, 8)),
 			name: String(g.name || "Group"),

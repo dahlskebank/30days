@@ -1,6 +1,11 @@
 /* ============================================================
-   sound.js — Web Audio synth blips (SPEC §10). All synthesized,
-   no assets. Triangle-wave envelopes, volumes ≤ .12.
+   sound.js — check-off soundboard + Web Audio synth fallback.
+
+   Named events map to sample pools in /sounds (random pick when a
+   pool has several files). Pools can be empty — the event then
+   falls back to a synthesized blip, or stays silent when the
+   fallback is null. The full inventory lives in SOUNDS.md at the
+   project root; swap files there and in SFX below to retheme.
    ============================================================ */
 
 let enabled = true;
@@ -8,8 +13,53 @@ let ctx = null;
 
 export function setEnabled(on){ enabled = !!on; }
 
-/* Lazy-init AudioContext on first gesture — browsers refuse to start
-   audio before the user has interacted with the page anyway. */
+/* ---------- sample pools ---------- */
+const DUDE_CHECKS = [
+	"dude_hehhehheh.mp3",
+	"dude_idefinitelyneed.mp3",
+	"dude_ididntexpectthat.mp3",
+	"dude_idontthinkso.mp3",
+	"dude_ifeelbetter.mp3",
+	"dude_igottafindmore.mp3",
+	"dude_iknewit.mp3",
+	"dude_iknewit2.mp3",
+	"dude_map_found3.mp3",
+	"dude_nowtheflowers.mp3",
+	"dude_thatcantbegood.wav",
+	"dude_thatmustbetheone.mp3",
+	"dude_thatsclearly.mp3",
+	"dude_yess.mp3",
+];
+
+/* event → { pool, fallback synth kind (null = silent when pool empty) } */
+const SFX = {
+	check:      { pool: DUDE_CHECKS,                        fallback: "check" },
+	uncheck:    { pool: ["oh-good-bale.mp3"],               fallback: "uncheck" },
+	section:    { pool: ["dude_aahthatsthestuff.mp3"],      fallback: "check" },   /* every task in a group done */
+	allcore:    { pool: ["serious-sam-extra-life.mp3"],     fallback: "full" },    /* AUGMENTED — 100% core */
+	allbonus:   { pool: [],                                 fallback: null },      /* OVERCLOCKED — every bonus lit (no file yet) */
+	allpassive: { pool: [],                                 fallback: null },      /* all passive rules online (no file yet) */
+	initiate:   { pool: [],                                 fallback: "full" },    /* protocol initiated */
+	fail:       { pool: [],                                 fallback: null },      /* protocol just failed (no file yet) */
+	nav:        { pool: [],                                 fallback: "nav" },     /* tab switch tick */
+	ui:         { pool: [],                                 fallback: "ui" },      /* generic UI tick */
+};
+
+const SAMPLE_VOLUME = 0.7;
+
+function playSample(pool){
+	const file = pool[(Math.random() * pool.length) | 0];
+	try {
+		const a = new Audio("/sounds/" + file);
+		a.volume = SAMPLE_VOLUME;
+		a.play().catch(() => { /* pre-gesture autoplay block — ignore */ });
+		return true;
+	} catch (e){
+		return false;
+	}
+}
+
+/* ---------- synth fallback (the original SPEC §10 blips) ---------- */
 function ac(){
 	if (!ctx){
 		try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -30,13 +80,7 @@ function tone(c, freq, t0, dur, vol){
 	o.start(t0); o.stop(t0 + dur + 0.02);
 }
 
-/* check   880→1318Hz two-blip rise (~130ms)
-   uncheck 392Hz single low (~90ms)
-   full    659–880–1318 ascending arpeggio (~400ms) — 100% core / protocol initiate
-   nav     523Hz 50ms tick
-   ui      740Hz 50ms */
-export function blip(kind){
-	if (!enabled) return;
+function synth(kind){
 	const c = ac();
 	if (!c) return;
 	const t = c.currentTime;
@@ -47,4 +91,13 @@ export function blip(kind){
 		case "nav":     tone(c, 523, t, 0.05, 0.07); break;
 		case "ui":      tone(c, 740, t, 0.05, 0.06); break;
 	}
+}
+
+/* ---------- public API ---------- */
+export function blip(kind){
+	if (!enabled) return;
+	const sfx = SFX[kind];
+	if (!sfx){ synth(kind); return; } /* raw synth kinds still work */
+	if (sfx.pool.length && playSample(sfx.pool)) return;
+	if (sfx.fallback) synth(sfx.fallback);
 }

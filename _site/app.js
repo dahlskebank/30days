@@ -1,9 +1,16 @@
 /* ============================================================
-   app.js — entry point: init, view switching, render
-   orchestration, events. Rendering is deliberately dumb: every
-   interaction mutates state, saves, and re-renders the current
-   view from scratch. At this app's size that is instant, and it
-   makes un-fail / rollover / reorder correctness automatic.
+   app.js — entry point: init, tab track (swipe + tap), panel
+   orchestration, rendering, events. Rendering stays deliberately
+   dumb: every interaction mutates state, saves, and re-renders
+   the three tab screens from scratch — at this app's size that is
+   instant, and it makes un-fail / rollover / reorder correctness
+   automatic.
+
+   Shell layout: .app is a fixed-height column (topbar + rule +
+   swipeable .viewport + nav). The three tab screens sit side by
+   side in .track and slide as one strip. SYSTEM is an offcanvas
+   drawer from the left; LOADOUT is a bottom sheet; the day editor
+   and confirm dialogs are HUD overlays.
    ============================================================ */
 
 import * as storage from "./storage.js";
@@ -11,12 +18,12 @@ import {
 	PROT_LEN, MONTHS, keyOf, dateOf, addDays, diffDays, fmtLong, genId,
 	effectiveToday, dayStats, chargeWord, heatColor, currentStreak,
 	bestStreakInRange, currentProtocol, protocolStatus, protocolMarker,
-	restoreStandard, tierTasks, allTasks,
+	protocolWindow, restoreStandard, tierTasks,
 } from "./model.js";
 import { blip, setEnabled as setSoundEnabled } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.0.0";
+const APP_VERSION = "v1.1.0";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -26,12 +33,13 @@ if (firstRun){
 	storage.requestPersist();
 }
 
-let currentView = "today";          /* today | prot | cal | loadout | system */
-let viewHistory = [];               /* for the ◄ BACK button on full-screen views */
+const TAB_IDS = ["today", "prot", "cal"];
+let tabIndex = 0;
 let calCursor = null;               /* first-of-month Date the calendar shows */
 let editingKey = null;              /* day the editor overlay has open */
 let lastRenderedDay = null;
 let nudgeShown = false;
+let deferredInstall = null;         /* captured beforeinstallprompt event */
 
 /* ---------- tiny DOM helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -45,6 +53,12 @@ function persist(){
 	const ok = storage.save(state);
 	if (!ok) toast("Could not save — storage full or blocked");
 	return ok;
+}
+
+function applySettings(){
+	setSoundEnabled(state.sound);
+	fx.setEnabled(state.fx && !fx.prefersReduced());
+	document.body.classList.toggle("marks-right", !!state.marksRight);
 }
 
 /* ---------- toast ---------- */
@@ -75,77 +89,118 @@ function settleConfirm(answer){
 	if (confirmResolve){ confirmResolve(answer); confirmResolve = null; }
 }
 
-/* ---------- overlay open/close (scrim + snap-in HUD panels) ---------- */
+/* ---------- overlay open/close (scrim + sliding panels) ---------- */
 const hideTimers = new WeakMap();
-function openOverlay(hud){
+function openOverlay(el){
 	/* cancel a pending hide from a just-closed overlay — without this a
-	   reopen within 220ms (e.g. the wipe double-confirm) gets force-hidden */
-	clearTimeout(hideTimers.get(hud));
+	   reopen within 300ms (e.g. the wipe double-confirm) gets force-hidden */
+	clearTimeout(hideTimers.get(el));
 	$("scrim").classList.add("open");
-	hud.hidden = false;
-	requestAnimationFrame(() => requestAnimationFrame(() => hud.classList.add("open")));
+	el.hidden = false;
+	requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("open")));
 }
-function closeOverlay(hud){
-	hud.classList.remove("open");
-	hideTimers.set(hud, setTimeout(() => { hud.hidden = true; }, 220));
+function closeOverlay(el){
+	el.classList.remove("open");
+	hideTimers.set(el, setTimeout(() => { el.hidden = true; }, 320));
 	if (!anyOverlayOpen()) $("scrim").classList.remove("open");
 }
 function anyOverlayOpen(){
-	return !!document.querySelector(".hud.open");
+	return !!document.querySelector(".hud.open, .offcanvas.open");
 }
+function isOpen(id){ return $(id).classList.contains("open"); }
 
 /* ============================================================
-   VIEW SWITCHING (SPEC §2) — no URL routing, straight view swap.
-   Full-screen views (loadout/system) hide the tab bar and show
-   the chamfered ◄ BACK instead.
+   TAB TRACK — tap a nav pill or swipe horizontally between the
+   three screens; both animate the same physical slide.
    ============================================================ */
-const SCREEN_IDS = {
-	today: "screen-today", prot: "screen-prot", cal: "screen-cal",
-	loadout: "screen-loadout", system: "screen-system",
-};
-const FULL_VIEWS = new Set(["loadout", "system"]);
-
-function renderView(name, opts = {}){
-	if (name === "today") renderToday();
-	else if (name === "prot") renderProt(opts);
-	else if (name === "cal") renderCal();
-	else if (name === "loadout") renderLoadout();
-	else if (name === "system") renderSystem();
+function applyTrack(){
+	$("track").style.transform = `translateX(${-tabIndex * 100}%)`;
 }
 
-function showView(name, { transition = true } = {}){
-	currentView = name;
-	for (const [key, id] of Object.entries(SCREEN_IDS)) $(id).hidden = (key !== name);
-	const isFull = FULL_VIEWS.has(name);
-	$("nav").hidden = isFull;
-	$("backBtn").hidden = !isFull;
-	if (!isFull){
-		viewHistory = [];
-		$("tab-today").setAttribute("aria-selected", name === "today");
-		$("tab-prot").setAttribute("aria-selected", name === "prot");
-		$("tab-cal").setAttribute("aria-selected", name === "cal");
-	}
-	renderView(name, { entering: true });
-	const screenEl = $(SCREEN_IDS[name]);
-	if (transition){
-		if (isFull) fx.fullSlide(screenEl);
-		else fx.tabFlicker(screenEl);
-	}
-	/* decode runs once per view ENTRY (SPEC §9) — not on every re-render */
-	if (name === "loadout") fx.decode($("loadoutTitle"));
-	if (name === "system") fx.decode($("systemTitle"));
-	window.scrollTo(0, 0);
+function showTab(i, { silent = false } = {}){
+	const changed = i !== tabIndex;
+	tabIndex = i;
+	$("track").classList.remove("dragging");
+	applyTrack();
+	TAB_IDS.forEach((t, k) => $("tab-" + t).setAttribute("aria-selected", k === i));
+	if (changed && !silent) blip("nav");
+	/* billet cascade on entering 30 Days (SPEC §9) */
+	if (changed && TAB_IDS[i] === "prot") renderProt({ entering: true });
 }
 
-function openFull(name){
-	viewHistory.push(currentView);
-	showView(name);
+/* swipe engine: vertical scrolling stays native (touch-action:pan-y on the
+   viewport); once a drag is clearly horizontal we capture the pointer and
+   drive the track transform directly, then snap on release. */
+function initSwipe(){
+	const viewport = $("viewport");
+	const track = $("track");
+	let drag = null;
+
+	viewport.addEventListener("pointerdown", e => {
+		if (e.pointerType === "mouse" && e.button !== 0) return;
+		drag = {
+			id: e.pointerId,
+			startX: e.clientX, startY: e.clientY,
+			decided: false, horizontal: false,
+			width: viewport.clientWidth,
+			lastX: e.clientX, lastT: performance.now(), vel: 0,
+		};
+	});
+
+	viewport.addEventListener("pointermove", e => {
+		if (!drag) return;
+		const dx = e.clientX - drag.startX;
+		const dy = e.clientY - drag.startY;
+		if (!drag.decided){
+			if (Math.abs(dx) < 9 && Math.abs(dy) < 9) return;
+			drag.decided = true;
+			drag.horizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+			if (!drag.horizontal){ drag = null; return; } /* let native vertical scroll have it */
+			try { viewport.setPointerCapture(drag.id); } catch (err){ /* pointer already gone */ }
+			track.classList.add("dragging");
+		}
+		const now = performance.now();
+		drag.vel = (e.clientX - drag.lastX) / Math.max(1, now - drag.lastT);
+		drag.lastX = e.clientX;
+		drag.lastT = now;
+
+		let offset = -tabIndex * drag.width + dx;
+		const min = -(TAB_IDS.length - 1) * drag.width;
+		if (offset > 0) offset *= 0.35;                       /* rubber-band past the first tab */
+		if (offset < min) offset = min + (offset - min) * 0.35; /* …and past the last */
+		track.style.transform = `translateX(${offset}px)`;
+	});
+
+	const end = e => {
+		if (!drag) return;
+		const d = drag;
+		drag = null;
+		if (!d.decided || !d.horizontal) return;
+		track.classList.remove("dragging");
+		const dx = e.clientX - d.startX;
+		let target = tabIndex;
+		/* commit on distance OR flick velocity — the standard app feel */
+		if (Math.abs(dx) > d.width * 0.22 || Math.abs(d.vel) > 0.45){
+			target = tabIndex + (dx < 0 ? 1 : -1);
+		}
+		target = Math.max(0, Math.min(TAB_IDS.length - 1, target));
+		if (target === tabIndex) applyTrack(); /* snap back */
+		else showTab(target);
+	};
+	viewport.addEventListener("pointerup", end);
+	viewport.addEventListener("pointercancel", end);
 }
-/* BACK returns to the previous view and re-renders it (SPEC §6.4) —
-   so loadout edits show up in Today/System immediately. */
-function goBack(){
-	const prev = viewHistory.pop() || "today";
-	showView(prev);
+
+/* ---------- render orchestration ---------- */
+function renderAll(){
+	renderToday();
+	renderProt();
+	renderCal();
+}
+function refreshOpenPanels(){
+	if (isOpen("systemPanel")) renderSystem();
+	if (isOpen("loadoutHud")) renderLoadout();
+	if (editingKey && isOpen("dayHud")) renderDayHud(editingKey);
 }
 
 /* ============================================================
@@ -256,15 +311,17 @@ function groupEl(group, key, live){
 			`<span class="mark"></span>` +
 			(t.tier !== "core" ? `<span class="tag">${t.tier.toUpperCase()}</span>` : "") +
 			`<span class="label">${esc(t.label)}</span>`;
-		btn.addEventListener("click", () => onToggleTask(key, t, live));
+		btn.addEventListener("click", () => onToggleTask(key, t, group, live));
 		wrap.appendChild(btn);
 	});
 	return wrap;
 }
 
 /* The check moment (SPEC §9) — sound + burst + bar flash + haptics,
-   and the AUGMENTED / passive-online transitions. */
-function onToggleTask(key, task, live){
+   plus the AUGMENTED / section-complete / passive-online transitions.
+   Sound priority per tap: all-core > section complete > all-passive
+   > all-bonus > plain check (one sample per tap, never a pile-up). */
+function onToggleTask(key, task, group, live){
 	const before = dayStats(state, key);
 
 	const arr = (state.log[key] || []).slice();
@@ -275,17 +332,26 @@ function onToggleTask(key, task, live){
 	persist();
 
 	const after = dayStats(state, key);
-	const crossedFull = before.ratio < 1 && after.ratio >= 1;
+	const crossedAllCore = before.ratio < 1 && after.ratio >= 1;
+	const crossedAllPassive = !before.allPassive && after.allPassive;
+	const crossedAllBonus = after.bonusTotal > 0 && before.bonusDone < before.bonusTotal && after.bonusDone === after.bonusTotal;
+	const doneSet = new Set(arr);
+	const sectionComplete = nowDone && group.tasks.length > 0 && group.tasks.every(t => doneSet.has(t.id));
 
-	// VERIFY: checking the last core task fires arpeggio + AUGMENTED decode; unchecking reverts state
-	blip(!nowDone ? "uncheck" : (crossedFull ? "full" : "check"));
+	// VERIFY: checking the last core task fires the all-core sound + AUGMENTED decode; unchecking reverts state
+	if (!nowDone) blip("uncheck");
+	else if (crossedAllCore) blip("allcore");
+	else if (sectionComplete) blip("section");
+	else if (crossedAllPassive) blip("allpassive");
+	else if (crossedAllBonus) blip("allbonus");
+	else blip("check");
 
 	/* re-render, then point the FX at the freshly-built nodes */
 	if (live) renderToday();
-	else {
-		renderDayHud(key);
-		renderView(currentView); /* un-fail must show through the overlay immediately (SPEC §7) */
-	}
+	else renderDayHud(key);
+	renderProt(); /* un-fail must show immediately (SPEC §7) */
+	renderCal();
+
 	const scope = live ? $("screen-today") : $("dayHud");
 	/* CSS.escape: imported backups may carry ids with selector metacharacters */
 	const markEl = scope.querySelector(`.task[data-task-id="${CSS.escape(task.id)}"] .mark`);
@@ -293,13 +359,15 @@ function onToggleTask(key, task, live){
 	   passive never move the bar (SPEC §4/§9) */
 	if (nowDone) fx.checkMoment(markEl, live && task.tier === "core" ? $("gMolten") : null);
 	if (live){
-		if (crossedFull) fx.augmented(document.querySelector("#screen-today .crucible"), $("gState"));
-		if (!before.allPassive && after.allPassive) fx.passiveFlash($("ptri"));
+		if (crossedAllCore) fx.augmented(document.querySelector("#screen-today .crucible"), $("gState"));
+		if (crossedAllPassive) fx.passiveFlash($("ptri"));
 	}
 }
 
 /* ============================================================
-   30 DAYS (SPEC §6.2)
+   30 DAYS (SPEC §6.2 — revised: there is no abort. A run only
+   ends by FAILING (core streak breaks) or SUSTAINING. After a
+   fail you start over — always, constantly.)
    ============================================================ */
 function renderProt({ entering = false } = {}){
 	const host = $("screen-prot");
@@ -412,24 +480,17 @@ function renderProt({ entering = false } = {}){
 	legend.innerHTML = `<span>Offline</span><div class="bar"></div><span>Augmented</span>`;
 	host.appendChild(legend);
 
-	/* --- ghost action: abort (active) / archive (failed or sustained) --- */
-	// VERIFY: abort = red-marked window on calendar, permanent; archive removes from 30 Days view only
+	/* --- actions: nothing while ACTIVE (no quitting), START OVER when
+	   FAILED, ARCHIVE when SUSTAINED --- */
 	const actions = document.createElement("div");
 	actions.className = "prot-actions";
-	const isActive = st.status === "ACTIVE";
-	actions.innerHTML = `<button class="ghost" id="endProtBtn">${isActive ? "Abort protocol" : "Archive protocol"}</button>`;
-	actions.querySelector("#endProtBtn").addEventListener("click", async () => {
-		blip("ui");
-		const ok = isActive
-			? await confirmHud("Abort protocol", "An aborted run marks this window red on the calendar, permanently. Quitting is failing.", { danger: true, yes: "Abort" })
-			: await confirmHud("Archive protocol", "Removes it from this view. The window and its markers stay in the calendar history forever.", { yes: "Archive" });
-		if (!ok) return;
-		prot.archived = true;
-		if (isActive) prot.aborted = true; /* permanent red marker — a later-perfect window must not derive its way to gold */
-		persist();
-		renderProt();
-		toast(isActive ? "Protocol aborted — the log runs on" : "Protocol archived");
-	});
+	if (st.status === "FAILED"){
+		actions.innerHTML = `<button class="cta" id="startOverBtn"><span class="tri"></span>Start over</button>`;
+		actions.querySelector("#startOverBtn").addEventListener("click", startOver);
+	} else if (st.status === "SUSTAINED"){
+		actions.innerHTML = `<button class="ghost" id="archiveBtn">Archive protocol</button>`;
+		actions.querySelector("#archiveBtn").addEventListener("click", archiveProtocol);
+	}
 	host.appendChild(actions);
 
 	if (entering) fx.cascade(hive);
@@ -439,15 +500,60 @@ async function initiateProtocol(){
 	blip("ui");
 	const ok = await confirmHud("Initiate protocol", "30 days, starting today. Strictly pass/fail: one day below 100% core and the run is dead.", { yes: "Initiate" });
 	if (!ok) return;
-	/* only one protocol may be active at a time — the button only renders
-	   when currentProtocol() is null, this is just a guard */
-	if (currentProtocol(state)) return;
+	if (currentProtocol(state)) return; /* the button only renders when there is none — just a guard */
 	state.protocols.push({ id: genId(), start: todayKey() });
 	persist();
-	blip("full");
-	renderView(currentView);
-	if (currentView !== "prot") showView("prot");
+	blip("initiate");
+	renderAll();
+	refreshOpenPanels();
+	showTab(1, { silent: true });
 	toast("Protocol initiated — day 1 of 30");
+}
+
+/* FAILED → start over: the dead run is archived (its lived days stay
+   red on the calendar) and a fresh 30-day window begins today. */
+async function startOver(){
+	blip("ui");
+	const prot = currentProtocol(state);
+	if (!prot) return;
+	const ok = await confirmHud("Start over", "The failed run is archived — the days it lived stay red on the calendar. A fresh 30-day window starts today.", { yes: "Start over" });
+	if (!ok) return;
+	prot.archived = true;
+	state.protocols.push({ id: genId(), start: todayKey() });
+	persist();
+	blip("initiate");
+	renderAll();
+	refreshOpenPanels();
+	toast("New protocol — day 1 of 30");
+}
+
+async function archiveProtocol(){
+	blip("ui");
+	const prot = currentProtocol(state);
+	if (!prot) return;
+	const ok = await confirmHud("Archive protocol", "Removes it from this view. The window and its markers stay in the calendar history forever.", { yes: "Archive" });
+	if (!ok) return;
+	prot.archived = true;
+	persist();
+	renderAll();
+	refreshOpenPanels();
+	toast("Protocol archived");
+}
+
+/* Testing helper (System): deletes the current run outright, as if it was
+   never initiated — no calendar markers left behind. Meant to be disabled
+   for the proper go-live. */
+async function resetProtocol(){
+	blip("ui");
+	const prot = currentProtocol(state);
+	if (!prot) return;
+	const ok = await confirmHud("Reset protocol", "Testing helper: removes the current run entirely, as if never initiated. No calendar markers remain.", { danger: true, yes: "Reset" });
+	if (!ok) return;
+	state.protocols.splice(state.protocols.indexOf(prot), 1);
+	persist();
+	renderAll();
+	refreshOpenPanels();
+	toast("Protocol reset — as if it never happened");
 }
 
 /* ============================================================
@@ -468,11 +574,11 @@ function renderCal(){
 	const earliest = dateOf(state.earliest);
 
 	/* protocol windows from the FULL history — markers are permanent.
-	   Newest protocol wins where archived windows overlap a newer one. */
+	   FAILED runs only mark the days they lived (start → breaking day):
+	   starting over must not paint 30 red days. Newest run wins overlaps. */
 	// VERIFY: calendar keeps gold/red hex markers for ALL past protocol windows across months
 	const windows = state.protocols.map(p => ({
-		startD: dateOf(p.start),
-		endD: addDays(dateOf(p.start), PROT_LEN - 1),
+		...protocolWindow(state, p),
 		color: protocolMarker(state, p),
 	}));
 
@@ -500,14 +606,12 @@ function renderCal(){
 			cell.disabled = true;
 			cell.setAttribute("aria-label", `${fmtLong(d)}, upcoming`);
 		} else if (beforeLog){
-			/* before tracking began: inert outline */
 			cell.classList.add("pre");
 			cell.disabled = true;
 			cell.setAttribute("aria-label", `${fmtLong(d)}, before tracking began`);
 		} else {
 			const ds = dayStats(state, key);
 			if (ds.ratio === 0){
-				/* same core-only miss rule as the hive */
 				cell.classList.add("miss");
 			} else {
 				cell.style.background = heatColor(ds.ratio);
@@ -529,7 +633,7 @@ function renderCal(){
 
 	$("calNote").innerHTML =
 		`<span class="hexdot"></span> sustained / in progress` +
-		`<span class="hexdot red"></span> failed / aborted`;
+		`<span class="hexdot red"></span> failed`;
 }
 
 /* ============================================================
@@ -565,17 +669,26 @@ function closeDayHud(){
 	if ($("dayHud").hidden) return;
 	closeOverlay($("dayHud"));
 	editingKey = null;
-	renderView(currentView);
+	renderAll();
 }
 
 /* ============================================================
-   LOADOUT — full-screen editor (SPEC §6.4)
+   LOADOUT — bottom sheet editor (SPEC §6.4)
    ============================================================ */
+function openLoadout(){
+	renderLoadout();
+	openOverlay($("loadoutHud"));
+	fx.decode($("loadoutTitle")); /* once per open, not per re-render */
+}
+function closeLoadout(){
+	if ($("loadoutHud").hidden) return;
+	closeOverlay($("loadoutHud"));
+	renderAll(); /* loadout edits reshape Today immediately */
+}
+
 function renderLoadout(){
-	const host = $("screen-loadout");
+	const host = $("loadoutBody");
 	host.innerHTML = `
-		<h2 id="loadoutTitle">Loadout</h2>
-		<div class="sub">Groups &amp; tasks — changes save instantly</div>
 		<div class="ed-note"><b>CORE</b> defines the 100% daily minimum · <b>BONUS</b> is overcharge beyond it · <b>PASSIVE</b> are standing rules, all-or-nothing.</div>
 		<div id="edWarnHost"></div>
 		<div id="edGroups"></div>
@@ -593,7 +706,7 @@ function renderLoadout(){
 	$("addGroupBtn").addEventListener("click", () => {
 		state.groups.push({ id: genId(), name: "New group", tasks: [] });
 		persist();
-		blip("check");
+		blip("ui");
 		renderLoadout();
 	});
 
@@ -669,7 +782,7 @@ function loadoutGroupEl(g, gi){
 		}
 		state.groups.splice(gi, 1);
 		persist();
-		blip("uncheck");
+		blip("ui");
 		renderLoadout();
 	});
 	head.appendChild(delG);
@@ -691,7 +804,6 @@ function loadoutGroupEl(g, gi){
 			tier.textContent = t.tier.toUpperCase();
 			persist();
 			blip("ui");
-			/* the no-core warning may need to appear/vanish */
 			const warnNeeded = tierTasks(state.groups, "core").length === 0;
 			$("edWarnHost").innerHTML = warnNeeded ? `<div class="ed-warn">No core tasks — every day counts as complete.</div>` : "";
 		});
@@ -712,7 +824,7 @@ function loadoutGroupEl(g, gi){
 		del.addEventListener("click", () => {
 			g.tasks.splice(ti, 1);
 			persist();
-			blip("uncheck");
+			blip("ui");
 			renderLoadout();
 			toast(`Removed "${t.label}"`);
 		});
@@ -727,7 +839,7 @@ function loadoutGroupEl(g, gi){
 	add.addEventListener("click", () => {
 		g.tasks.push({ id: genId(), label: "New task", tier: "core" });
 		persist();
-		blip("check");
+		blip("ui");
 		renderLoadout();
 		/* focus + select the new input so typing replaces the placeholder */
 		const inputs = $("edGroups").children[gi]?.querySelectorAll(".ed-task input");
@@ -738,21 +850,34 @@ function loadoutGroupEl(g, gi){
 
 	return box;
 }
-/* (decode of the Loadout title happens in showView, on entry only) */
 
 /* ============================================================
-   SYSTEM — full-screen settings (SPEC §6.5)
+   SYSTEM — offcanvas menu (SPEC §6.5 + install + display prefs)
    ============================================================ */
+function openSystem(){
+	renderSystem();
+	openOverlay($("systemPanel"));
+	fx.decode($("systemTitle"));
+}
+function closeSystem(){
+	if ($("systemPanel").hidden) return;
+	closeOverlay($("systemPanel"));
+	renderAll();
+}
+
+function installSubtitle(){
+	if (matchMedia("(display-mode: standalone)").matches) return "already installed — you're running it";
+	if (deferredInstall) return "add to your home screen";
+	return "browser menu → Install app / Add to Home screen";
+}
+
 function renderSystem(){
-	const host = $("screen-system");
+	const host = $("systemBody");
 	const prot = currentProtocol(state);
 	const st = prot ? protocolStatus(state, prot) : null;
 	const reduced = fx.prefersReduced();
 
 	host.innerHTML = `
-		<h2 id="systemTitle">System</h2>
-		<div class="sub">All data stays on this device</div>
-
 		<div class="menu-row">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
 			<div class="mt"><b>Daily rollover</b><small>day commits &amp; checklist resets</small></div>
@@ -761,14 +886,20 @@ function renderSystem(){
 
 		<div class="menu-row menu-row-tap" id="sysSoundRow">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4zM16 9a5 5 0 010 6"/></svg>
-			<div class="mt"><b>UI sounds</b><small>feedback blips on check-off</small></div>
-			<button class="switch" id="soundSwitch" role="switch" aria-checked="${state.sound}" aria-label="UI sounds"></button>
+			<div class="mt"><b>Sounds</b><small>check-off soundboard &amp; blips</small></div>
+			<button class="switch" id="soundSwitch" role="switch" aria-checked="${state.sound}" aria-label="Sounds"></button>
 		</div>
 
 		<div class="menu-row menu-row-tap" id="sysFxRow">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
 			<div class="mt"><b>Reduce FX</b><small>${reduced ? "forced on by system reduced-motion" : "disable animations &amp; parallax"}</small></div>
 			<button class="switch" id="fxSwitch" role="switch" aria-checked="${reduced || !state.fx}" ${reduced ? 'aria-disabled="true"' : ""} aria-label="Reduce FX"></button>
+		</div>
+
+		<div class="menu-row menu-row-tap" id="sysMarksRow">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
+			<div class="mt"><b>Checkmarks on right</b><small>flip task rows: text left, triangle right</small></div>
+			<button class="switch" id="marksSwitch" role="switch" aria-checked="${!!state.marksRight}" aria-label="Checkmarks on right"></button>
 		</div>
 
 		<button class="menu-row" id="sysEditRow">
@@ -779,6 +910,11 @@ function renderSystem(){
 		<button class="menu-row" id="sysProtRow">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2l8 5v10l-8 5-8-5V7z"/></svg>
 			<div class="mt"><b id="sysProtTitle"></b><small id="sysProtSub"></small></div>
+		</button>
+
+		<button class="menu-row" id="sysInstallRow">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+			<div class="mt"><b>Install app</b><small>${installSubtitle()}</small></div>
 		</button>
 
 		<button class="menu-row" id="sysExportRow">
@@ -796,7 +932,7 @@ function renderSystem(){
 			<div class="mt"><b>Wipe all data</b><small>erase log &amp; protocols — keeps the loadout</small></div>
 		</button>
 
-		<div class="sysfoot">30 Days of Dahl · <b>${APP_VERSION}</b> · no cookies, no cloud, no excuses</div>`;
+		<div class="sysfoot">Protocol · <b>${APP_VERSION}</b> · no cookies, no cloud, no excuses</div>`;
 
 	/* --- rollover: re-renders but never rewrites the log (SPEC §3.3) --- */
 	$("rollInput").addEventListener("change", e => {
@@ -806,10 +942,11 @@ function renderSystem(){
 		e.target.value = h;
 		state.rolloverHour = h;
 		persist();
+		renderAll();
 		toast(`Rollover set to ${String(h).padStart(2, "0")}:00`);
 	});
 
-	/* --- sound: toggling ON plays the check blip as confirmation (SPEC §10) --- */
+	/* --- sound: toggling ON plays the check sound as confirmation (SPEC §10) --- */
 	$("soundSwitch").addEventListener("click", e => {
 		state.sound = !state.sound;
 		setSoundEnabled(state.sound);
@@ -827,37 +964,63 @@ function renderSystem(){
 		persist();
 	});
 
+	/* --- checkmark side --- */
+	$("marksSwitch").addEventListener("click", e => {
+		state.marksRight = !state.marksRight;
+		document.body.classList.toggle("marks-right", state.marksRight);
+		e.currentTarget.setAttribute("aria-checked", state.marksRight);
+		persist();
+		blip("ui");
+	});
+
 	/* the 52×28 switches are small — let the whole row toggle them */
 	$("sysSoundRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("soundSwitch").click(); });
 	$("sysFxRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("fxSwitch").click(); });
+	$("sysMarksRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("marksSwitch").click(); });
 
-	$("sysEditRow").addEventListener("click", () => { blip("ui"); openFull("loadout"); });
+	$("sysEditRow").addEventListener("click", () => {
+		blip("ui");
+		closeOverlay($("systemPanel"));
+		openLoadout();
+	});
 
-	/* --- contextual protocol row --- */
+	/* --- contextual protocol row (no abort — fail / start over / reset-for-testing) --- */
 	const protTitle = $("sysProtTitle"), protSub = $("sysProtSub");
 	if (!prot){
 		protTitle.textContent = "Initiate 30-day protocol";
 		protSub.textContent = "begin the crucible from today";
-	} else if (st.status === "ACTIVE"){
-		protTitle.textContent = "Abort 30-day protocol";
-		protSub.textContent = "running since " + fmtShort(st.startD);
-	} else {
+		$("sysProtRow").addEventListener("click", initiateProtocol);
+	} else if (st.status === "FAILED"){
+		protTitle.textContent = "Start over";
+		protSub.textContent = "failed · lived days stay on the calendar";
+		$("sysProtRow").addEventListener("click", startOver);
+	} else if (st.status === "SUSTAINED"){
 		protTitle.textContent = "Archive protocol";
-		protSub.textContent = st.status.toLowerCase() + " · started " + fmtShort(st.startD);
+		protSub.textContent = "sustained · started " + fmtShort(st.startD);
+		$("sysProtRow").addEventListener("click", archiveProtocol);
+	} else {
+		protTitle.textContent = "Reset protocol";
+		protSub.textContent = "testing helper — removes the run entirely";
+		$("sysProtRow").addEventListener("click", resetProtocol);
 	}
-	$("sysProtRow").addEventListener("click", async () => {
-		if (!prot){ initiateProtocol(); return; }
+
+	/* --- install (captured beforeinstallprompt, or a pointer to the browser menu) --- */
+	$("sysInstallRow").addEventListener("click", async () => {
 		blip("ui");
-		const isActive = st.status === "ACTIVE";
-		const ok = isActive
-			? await confirmHud("Abort protocol", "An aborted run marks this window red on the calendar, permanently. Quitting is failing.", { danger: true, yes: "Abort" })
-			: await confirmHud("Archive protocol", "Removes it from the 30 Days view. The window stays in the calendar history forever.", { yes: "Archive" });
-		if (!ok) return;
-		prot.archived = true;
-		if (isActive) prot.aborted = true; /* same permanent-red rule as the 30 Days view */
-		persist();
-		renderSystem();
-		toast(isActive ? "Protocol aborted — the log runs on" : "Protocol archived");
+		if (matchMedia("(display-mode: standalone)").matches){
+			toast("Already installed — this is the app");
+			return;
+		}
+		if (deferredInstall){
+			deferredInstall.prompt();
+			const choice = await deferredInstall.userChoice.catch(() => null);
+			if (choice && choice.outcome === "accepted"){
+				deferredInstall = null;
+				toast("Installing — check your home screen");
+			}
+			return;
+		}
+		toast("Use the browser menu: Install app / Add to Home screen");
 	});
 
 	$("sysExportRow").addEventListener("click", exportBackup);
@@ -877,6 +1040,7 @@ function renderSystem(){
 		state.lastBackupNudge = tk;
 		persist();
 		calCursor = null;
+		renderAll();
 		renderSystem();
 		toast("All data wiped — loadout kept");
 	});
@@ -899,6 +1063,7 @@ function exportBackup(){
 	toast("Backup downloaded");
 }
 
+// VERIFY: export → wipe → import round-trips identical state
 function importBackup(file){
 	const reader = new FileReader();
 	reader.onload = () => {
@@ -906,9 +1071,9 @@ function importBackup(file){
 			state = storage.importJSON(reader.result);
 			const saved = persist();
 			calCursor = null;
-			setSoundEnabled(state.sound);
-			fx.setEnabled(state.fx && !fx.prefersReduced());
-			renderView(currentView);
+			applySettings();
+			renderAll();
+			refreshOpenPanels();
 			/* don't let a success toast clobber persist()'s failure toast —
 			   an unsaved restore silently reverts on the next launch */
 			if (saved) toast("Backup restored");
@@ -921,8 +1086,7 @@ function importBackup(file){
 }
 
 /* ============================================================
-   BACKUP NUDGE (SPEC §11) — once per session, if the log has ≥ 7
-   entries and the last nudge/export is ≥ 14 days old.
+   BACKUP NUDGE (SPEC §11)
    ============================================================ */
 // VERIFY: backup nudge appears after 14 days, clears on export
 function maybeNudgeBackup(){
@@ -936,8 +1100,7 @@ function maybeNudgeBackup(){
 }
 
 /* ============================================================
-   ROLLOVER WATCH — when the effective day flips (05:00 by
-   default), whatever view is open re-renders on the new day.
+   ROLLOVER WATCH
    ============================================================ */
 // VERIFY: rollover — at 04:59 local the app shows yesterday; at 05:00 it flips and yesterday is committed
 function dayTick(){
@@ -945,7 +1108,8 @@ function dayTick(){
 	if (tk !== lastRenderedDay){
 		lastRenderedDay = tk;
 		calCursor = null;
-		renderView(currentView);
+		renderAll();
+		refreshOpenPanels();
 	}
 }
 
@@ -953,19 +1117,18 @@ function dayTick(){
    INIT
    ============================================================ */
 function init(){
-	setSoundEnabled(state.sound);
-	fx.setEnabled(state.fx && !fx.prefersReduced());
+	applySettings();
 	lastRenderedDay = todayKey();
 
-	/* tabs */
-	$("tab-today").addEventListener("click", () => { blip("nav"); showView("today"); });
-	$("tab-prot").addEventListener("click", () => { blip("nav"); showView("prot"); });
-	$("tab-cal").addEventListener("click", () => { blip("nav"); showView("cal"); });
+	/* tabs — tapping animates the same slide the swipe performs */
+	TAB_IDS.forEach((t, i) => $("tab-" + t).addEventListener("click", () => showTab(i)));
+	initSwipe();
 
-	/* full-screen views */
-	$("systemBtn").addEventListener("click", () => { blip("ui"); openFull("system"); });
-	$("editLoadoutBtn").addEventListener("click", () => { blip("ui"); openFull("loadout"); });
-	$("backBtn").addEventListener("click", () => { blip("ui"); goBack(); });
+	/* panels */
+	$("systemBtn").addEventListener("click", () => { blip("ui"); openSystem(); });
+	$("systemClose").addEventListener("click", () => { blip("ui"); closeSystem(); });
+	$("editLoadoutBtn").addEventListener("click", () => { blip("ui"); openLoadout(); });
+	$("loadoutClose").addEventListener("click", () => { blip("ui"); closeLoadout(); });
 
 	/* calendar month nav */
 	$("calPrev").addEventListener("click", () => {
@@ -979,19 +1142,22 @@ function init(){
 		renderCal();
 	});
 
-	/* overlays */
+	/* overlays: scrim + Escape close whatever is on top */
 	$("scrim").addEventListener("click", () => {
-		if (confirmResolve) settleConfirm(false);
-		closeDayHud();
+		if (confirmResolve){ settleConfirm(false); return; }
+		if (isOpen("dayHud")){ closeDayHud(); return; }
+		if (isOpen("loadoutHud")){ closeLoadout(); return; }
+		if (isOpen("systemPanel")) closeSystem();
 	});
 	$("dhDone").addEventListener("click", () => { blip("ui"); closeDayHud(); });
 	$("chYes").addEventListener("click", () => { blip("ui"); settleConfirm(true); });
 	$("chNo").addEventListener("click", () => { blip("ui"); settleConfirm(false); });
 	document.addEventListener("keydown", e => {
-		if (e.key === "Escape"){
-			if (confirmResolve) settleConfirm(false);
-			else closeDayHud();
-		}
+		if (e.key !== "Escape") return;
+		if (confirmResolve){ settleConfirm(false); return; }
+		if (isOpen("dayHud")){ closeDayHud(); return; }
+		if (isOpen("loadoutHud")){ closeLoadout(); return; }
+		if (isOpen("systemPanel")) closeSystem();
 	});
 
 	/* import file picker */
@@ -1000,7 +1166,18 @@ function init(){
 		e.target.value = "";
 	});
 
-	/* desktop footer */
+	/* PWA install: capture the browser's prompt so the System row can fire it */
+	window.addEventListener("beforeinstallprompt", e => {
+		e.preventDefault();
+		deferredInstall = e;
+		if (isOpen("systemPanel")) renderSystem();
+	});
+	window.addEventListener("appinstalled", () => {
+		deferredInstall = null;
+		toast("Installed — Protocol is on your home screen");
+	});
+
+	/* desktop landing footer */
 	$("footYear").textContent = new Date().getFullYear();
 	$("footVersion").textContent = APP_VERSION;
 
@@ -1010,21 +1187,20 @@ function init(){
 
 	/* another instance saved (installed PWA + browser tab open at once):
 	   whole-state saves are last-write-wins, so re-load and re-render
-	   whenever a sibling writes — otherwise this instance's next save
-	   would silently erase the other's check-offs */
+	   whenever a sibling writes */
 	window.addEventListener("storage", e => {
 		if (e.key !== storage.STORAGE_KEY || e.newValue === null) return;
 		const fresh = storage.load();
 		if (!fresh) return;
 		state = fresh;
-		setSoundEnabled(state.sound);
-		fx.setEnabled(state.fx && !fx.prefersReduced());
-		renderView(currentView);
-		if (editingKey && !$("dayHud").hidden) renderDayHud(editingKey);
+		applySettings();
+		renderAll();
+		refreshOpenPanels();
 	});
 
 	/* first paint + boot sequence (SPEC §9) */
-	showView("today", { transition: false });
+	renderAll();
+	showTab(0, { silent: true });
 	fx.runBoot({
 		zeroBar: () => {
 			const m = $("gMolten");
@@ -1040,10 +1216,12 @@ function init(){
 	if (storage.loadNotice) setTimeout(() => toast(storage.loadNotice), 1200);
 	setTimeout(maybeNudgeBackup, 2600);
 
-	/* service worker — cache-first app shell, offline after first load (SPEC §11) */
+	/* service worker — cache-first app shell, offline after first load (SPEC §11).
+	   localhost counts as a secure context, so local testing gets the SW too. */
 	// VERIFY: offline — airplane mode after first load, app fully works, fonts render
 	// VERIFY: install to Android home screen from kiande.com over HTTPS; standalone, no browser chrome
-	if ("serviceWorker" in navigator && location.protocol === "https:"){
+	if ("serviceWorker" in navigator &&
+		(location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname))){
 		navigator.serviceWorker.register("/sw.js").catch(() => { /* offline-first is progressive */ });
 	}
 }
