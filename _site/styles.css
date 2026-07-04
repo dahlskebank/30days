@@ -53,7 +53,7 @@ body{
 	font-family:var(--tech); font-size:15.5px; line-height:1.45;
 	-webkit-font-smoothing:antialiased; overscroll-behavior-y:none;
 }
-button{ font:inherit; color:inherit; background:none; border:none; cursor:pointer; padding:0; }
+button{ font:inherit; color:inherit; background:none; border:none; cursor:pointer; padding:0; touch-action:manipulation; }
 input{ font:inherit; }
 /* all numerals line up in columns — gauge, streak, calendar (SPEC §8) */
 body{ font-variant-numeric:tabular-nums; }
@@ -560,17 +560,19 @@ body{ font-variant-numeric:tabular-nums; }
 .tierbtn[data-tier="bonus"]{ color:var(--gold); border-color:var(--gold-lo); }
 .tierbtn[data-tier="passive"]{ color:var(--dim); border-color:var(--hair-2); }
 
-/* reorder arrows (▲▼) — groups and tasks */
-.ordbtns{ flex:none; display:flex; flex-direction:column; }
+/* reorder arrows (▲▼) — groups and tasks. Thumb-sized (SPEC §1: 44px+
+   targets) with a gap so up/down can't be confused under a fat press. */
+.ordbtns{ flex:none; display:flex; flex-direction:column; gap:3px; }
 .ordbtns button{
-	width:30px; height:20px; display:grid; place-items:center;
+	width:44px; height:30px; display:grid; place-items:center;
 	color:var(--faint); font-size:9px; line-height:1;
+	background:var(--carbon-2);
+	clip-path:polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
 }
 .ordbtns button:hover{ color:var(--gold); }
 .ordbtns button[disabled]{ opacity:.25; cursor:default; }
-.ed-ghead .ordbtns button{ height:22px; }
 
-.delbtn{ flex:none; width:36px; height:40px; display:grid; place-items:center; color:var(--faint); }
+.delbtn{ flex:none; width:44px; height:44px; display:grid; place-items:center; color:var(--faint); }
 .delbtn:hover{ color:var(--danger); }
 .delbtn svg{ width:17px; height:17px; }
 
@@ -588,6 +590,7 @@ body{ font-variant-numeric:tabular-nums; }
 	min-height:var(--tap); padding:12px 4px; text-align:left;
 	border-bottom:1px solid var(--hair);
 }
+.menu-row-tap{ cursor:pointer; } /* whole row forwards to its small hex switch */
 .menu-row svg{ width:20px; height:20px; color:var(--gold); flex:none; }
 .menu-row .mt{ flex:1; }
 .menu-row .mt b{ display:block; font-weight:600; font-size:14.5px; }
@@ -806,6 +809,11 @@ body.boot-s2 .gauge{ opacity:1; transform:none; transition:opacity .16s var(--sn
 	padding:14px 18px; text-align:center; font-size:13px; letter-spacing:.08em;
 	clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
+
+/* ---------- FX master switch: also halts the pure-CSS §9 animations
+   (fx.js toggles body.fx-off; JS-driven FX check their own flag) ---------- */
+body.fx-off .bg-shaft{ animation:none; }
+body.fx-off .cells.overclocked .cell-hex.lit{ animation:none; }
 
 /* ---------- reduced motion: kill everything (SPEC §9) ---------- */
 @media (prefers-reduced-motion: reduce){

@@ -17,6 +17,9 @@ export function prefersReduced(){
 // VERIFY: prefers-reduced-motion disables boot/decode/parallax automatically
 export function setEnabled(on){
 	enabled = !!on;
+	/* body.fx-off lets the stylesheet halt the pure-CSS §9 animations
+	   (light-shaft drift, OVERCLOCKED cell pulse) that JS never drives */
+	document.body.classList.toggle("fx-off", !enabled);
 	if (!enabled){
 		stopParallax();
 		stopAmbient();
@@ -55,6 +58,15 @@ export function decode(el, finalText){
 	decodeTimers.set(el, timer);
 }
 
+/* Stop a pending decode on an element — renderers call this before writing
+   a new value so a mid-scramble decode can't overwrite fresh text. */
+export function cancelDecode(el){
+	if (decodeTimers.has(el)){
+		clearInterval(decodeTimers.get(el));
+		decodeTimers.delete(el);
+	}
+}
+
 /* ---------- boot sequence (SPEC §9) ----------
    Once per session, ~600ms, tap to skip: gold rule draws left→right →
    gauge frame snaps in → bar fills to current charge → title decodes.
@@ -69,32 +81,37 @@ export function runBoot(hooks){
 	};
 	if (!enabled){ finish(); return; }
 
+	/* zero the bar BEFORE anything becomes visible, so the 300ms fill
+	   genuinely animates 0 → current charge instead of full → 0 → full */
+	if (hooks.zeroBar) hooks.zeroBar();
 	body.classList.add("boot-pre");
 	let done = false;
-	const skip = () => { if (!done){ done = true; finish(); } };
-	if (overlay){
-		overlay.hidden = false;
-		overlay.addEventListener("pointerdown", skip, { once: true });
-	}
+	if (overlay) overlay.hidden = false;
 
-	const t1 = setTimeout(() => body.classList.add("boot-s1"), 30);           /* rule draws */
-	const t2 = setTimeout(() => body.classList.add("boot-s2"), 330);          /* gauge snaps in */
-	const t3 = setTimeout(() => { if (!done) hooks.fillBar(); }, 500);        /* bar fills, ticks light */
-	const t4 = setTimeout(() => { if (hooks.title) decode(hooks.title); }, 380);
+	/* ~600ms total (SPEC §9); the tap-catcher overlay clears at 620ms even
+	   though the bar's width transition keeps easing underneath */
+	const t1 = setTimeout(() => body.classList.add("boot-s1"), 20);           /* rule draws */
+	const t2 = setTimeout(() => body.classList.add("boot-s2"), 210);          /* gauge snaps in */
+	const t3 = setTimeout(() => { if (!done) hooks.fillBar(); }, 300);        /* bar fills, ticks light */
+	const t4 = setTimeout(() => { if (!done && hooks.title) decode(hooks.title); }, 260);
 	const t5 = setTimeout(() => { if (!done){ done = true;
 		body.classList.remove("boot-pre", "boot-s1", "boot-s2");
 		if (overlay) overlay.hidden = true;
-	} }, 1150);
-	/* a skip mid-way leaves timers running but `done` makes them no-ops */
-	if (overlay) overlay.addEventListener("pointerdown", () => [t1, t2, t3, t4, t5].forEach(clearTimeout), { once: true });
+	} }, 620);
+	if (overlay){
+		overlay.addEventListener("pointerdown", () => {
+			[t1, t2, t3, t4, t5].forEach(clearTimeout);
+			if (!done){ done = true; finish(); }
+		}, { once: true });
+	}
 }
 
 /* ---------- check moment (SPEC §9) ----------
    The dopamine loop — polish it hardest: triangle burst + leading-edge
    flash on the bar + a 10ms haptic tick where supported. */
 export function checkMoment(markEl, moltenEl){
+	if (!enabled) return; /* §9: the whole check moment — haptics included — sits behind the FX switch */
 	try { if (navigator.vibrate) navigator.vibrate(10); } catch (e){ /* blocked */ }
-	if (!enabled) return;
 	if (markEl){
 		markEl.classList.remove("burst");
 		void markEl.offsetWidth; /* restart the animation */

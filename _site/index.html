@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<!-- viewport-fit=cover lets the app paint behind notches; safe-area insets in CSS keep content clear -->
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+	<!-- viewport-fit=cover lets the app paint behind notches; safe-area insets in CSS keep
+	     content clear. No maximum-scale: blocking pinch-zoom is an accessibility regression;
+	     touch-action:manipulation on the controls prevents accidental double-tap zoom instead. -->
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 	<title>30 Days of Dahl — Daily discipline protocol</title>
 	<meta name="description" content="A forever-running daily discipline tracker. Check off the daily loadout, bank the streak, survive the 30-day protocol. Styled after Deus Ex: Human Revolution.">

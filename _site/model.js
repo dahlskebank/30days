@@ -35,8 +35,14 @@ export function genId(){ return "t" + Date.now().toString(36) + Math.random().to
    Before 05:00 it is still yesterday. All log keys use effective dates. */
 // VERIFY: rollover — at 04:59 local the app shows yesterday; at 05:00 it flips and yesterday is committed
 export function effectiveToday(rolloverHour){
-	const d = new Date(Date.now() - rolloverHour * 3600000);
+	/* Wall-clock math, not now−Nh milliseconds: subtracting absolute hours
+	   drifts on DST transition days (the flip would land at 04:00 or 06:00
+	   local twice a year). setHours/setDate operate on the local calendar,
+	   so this flips at exactly rolloverHour every day. */
+	const d = new Date();
+	const stillYesterday = d.getHours() < rolloverHour;
 	d.setHours(0, 0, 0, 0);
+	if (stillYesterday) d.setDate(d.getDate() - 1);
 	return d;
 }
 
@@ -196,7 +202,9 @@ export function currentProtocol(state){
 export function protocolStatus(state, prot){
 	const today = effectiveToday(state.rolloverHour);
 	const startD = dateOf(prot.start);
-	const idx = diffDays(today, startD);
+	/* clamped: raising rolloverHour right after initiating can push the
+	   effective date behind the start — treat that as day 1, not "day 0" */
+	const idx = Math.max(0, diffDays(today, startD));
 	const lastCommitted = Math.min(idx - 1, PROT_LEN - 1);
 	let failIdx = -1;
 	for (let i = 0; i <= lastCommitted; i++){
@@ -212,6 +220,10 @@ export function protocolStatus(state, prot){
    gold  — sustained, or the in-progress unarchived run
    red   — failed, or archived before sustaining (quitting is failing) */
 export function protocolMarker(state, prot){
+	/* an ABORT is recorded on the protocol itself — otherwise a window that
+	   later happens to fill with 100% days would derive SUSTAINED and flip
+	   the marker gold, and the spec says abort-red is permanent */
+	if (prot.aborted) return "red";
 	const { status } = protocolStatus(state, prot);
 	if (status === "FAILED") return "red";
 	if (prot.archived && status !== "SUSTAINED") return "red";

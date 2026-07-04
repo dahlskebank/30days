@@ -42,7 +42,9 @@ function todayKey(){ return keyOf(effectiveToday(state.rolloverHour)); }
 function fmtShort(d){ return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + " " + d.getFullYear(); }
 
 function persist(){
-	if (!storage.save(state)) toast("Could not save — storage full or blocked");
+	const ok = storage.save(state);
+	if (!ok) toast("Could not save — storage full or blocked");
+	return ok;
 }
 
 /* ---------- toast ---------- */
@@ -74,14 +76,18 @@ function settleConfirm(answer){
 }
 
 /* ---------- overlay open/close (scrim + snap-in HUD panels) ---------- */
+const hideTimers = new WeakMap();
 function openOverlay(hud){
+	/* cancel a pending hide from a just-closed overlay — without this a
+	   reopen within 220ms (e.g. the wipe double-confirm) gets force-hidden */
+	clearTimeout(hideTimers.get(hud));
 	$("scrim").classList.add("open");
 	hud.hidden = false;
 	requestAnimationFrame(() => requestAnimationFrame(() => hud.classList.add("open")));
 }
 function closeOverlay(hud){
 	hud.classList.remove("open");
-	setTimeout(() => { hud.hidden = true; }, 220);
+	hideTimers.set(hud, setTimeout(() => { hud.hidden = true; }, 220));
 	if (!anyOverlayOpen()) $("scrim").classList.remove("open");
 }
 function anyOverlayOpen(){
@@ -125,6 +131,9 @@ function showView(name, { transition = true } = {}){
 		if (isFull) fx.fullSlide(screenEl);
 		else fx.tabFlicker(screenEl);
 	}
+	/* decode runs once per view ENTRY (SPEC §9) — not on every re-render */
+	if (name === "loadout") fx.decode($("loadoutTitle"));
+	if (name === "system") fx.decode($("systemTitle"));
 	window.scrollTo(0, 0);
 }
 
@@ -164,6 +173,7 @@ function renderToday(){
 	$("gTotal").textContent = s.coreTotal;
 	$("gPct").textContent = "CHARGE " + Math.round(s.ratio * 100) + "%" + (s.ratio >= 1 && s.bonusDone > 0 ? " +" + s.bonusDone : "");
 	const stateEl = $("gState");
+	fx.cancelDecode(stateEl); /* a mid-scramble AUGMENTED decode must not overwrite a fresh lower state word */
 	stateEl.textContent = chargeWord(s);
 	stateEl.style.color = (s.ratio > 0 || s.bonusDone > 0) ? heatColor(Math.max(s.ratio, 0.3)) : "var(--faint)";
 
@@ -277,8 +287,11 @@ function onToggleTask(key, task, live){
 		renderView(currentView); /* un-fail must show through the overlay immediately (SPEC §7) */
 	}
 	const scope = live ? $("screen-today") : $("dayHud");
-	const markEl = scope.querySelector(`.task[data-task-id="${task.id}"] .mark`);
-	if (nowDone) fx.checkMoment(markEl, live ? $("gMolten") : null);
+	/* CSS.escape: imported backups may carry ids with selector metacharacters */
+	const markEl = scope.querySelector(`.task[data-task-id="${CSS.escape(task.id)}"] .mark`);
+	/* the bar's leading-edge flash belongs to core checks only — bonus and
+	   passive never move the bar (SPEC §4/§9) */
+	if (nowDone) fx.checkMoment(markEl, live && task.tier === "core" ? $("gMolten") : null);
 	if (live){
 		if (crossedFull) fx.augmented(document.querySelector("#screen-today .crucible"), $("gState"));
 		if (!before.allPassive && after.allPassive) fx.passiveFlash($("ptri"));
@@ -364,7 +377,9 @@ function renderProt({ entering = false } = {}){
 					hex.style.background = ds.ratio > 0 ? heatColor(ds.ratio) : "var(--miss)";
 				} else if (isDead){
 					hex.classList.add("dead");
-				} else if (ds.ratio === 0 && ds.bonusDone === 0){
+				} else if (ds.ratio === 0){
+					/* 0% CORE is a miss even if bonus/passive were checked —
+					   charge is core-only (SPEC §4) and the day breaks streaks */
 					hex.classList.add("miss");
 				} else {
 					hex.style.background = heatColor(ds.ratio);
@@ -410,6 +425,7 @@ function renderProt({ entering = false } = {}){
 			: await confirmHud("Archive protocol", "Removes it from this view. The window and its markers stay in the calendar history forever.", { yes: "Archive" });
 		if (!ok) return;
 		prot.archived = true;
+		if (isActive) prot.aborted = true; /* permanent red marker — a later-perfect window must not derive its way to gold */
 		persist();
 		renderProt();
 		toast(isActive ? "Protocol aborted — the log runs on" : "Protocol archived");
@@ -490,7 +506,8 @@ function renderCal(){
 			cell.setAttribute("aria-label", `${fmtLong(d)}, before tracking began`);
 		} else {
 			const ds = dayStats(state, key);
-			if (ds.ratio === 0 && ds.bonusDone === 0){
+			if (ds.ratio === 0){
+				/* same core-only miss rule as the hive */
 				cell.classList.add("miss");
 			} else {
 				cell.style.background = heatColor(ds.ratio);
@@ -590,8 +607,6 @@ function renderLoadout(){
 		renderLoadout();
 		toast(added ? `Restored ${added} standard task${added === 1 ? "" : "s"}` : "Nothing missing — already standard");
 	});
-
-	fx.decode($("loadoutTitle"));
 }
 
 const TIER_CYCLE = { core: "bonus", bonus: "passive", passive: "core" };
@@ -723,6 +738,7 @@ function loadoutGroupEl(g, gi){
 
 	return box;
 }
+/* (decode of the Loadout title happens in showView, on entry only) */
 
 /* ============================================================
    SYSTEM — full-screen settings (SPEC §6.5)
@@ -743,13 +759,13 @@ function renderSystem(){
 			<div class="roll"><input id="rollInput" type="number" min="0" max="23" inputmode="numeric" value="${state.rolloverHour}"><span>:00</span></div>
 		</div>
 
-		<div class="menu-row">
+		<div class="menu-row menu-row-tap" id="sysSoundRow">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4zM16 9a5 5 0 010 6"/></svg>
 			<div class="mt"><b>UI sounds</b><small>feedback blips on check-off</small></div>
 			<button class="switch" id="soundSwitch" role="switch" aria-checked="${state.sound}" aria-label="UI sounds"></button>
 		</div>
 
-		<div class="menu-row">
+		<div class="menu-row menu-row-tap" id="sysFxRow">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
 			<div class="mt"><b>Reduce FX</b><small>${reduced ? "forced on by system reduced-motion" : "disable animations &amp; parallax"}</small></div>
 			<button class="switch" id="fxSwitch" role="switch" aria-checked="${reduced || !state.fx}" ${reduced ? 'aria-disabled="true"' : ""} aria-label="Reduce FX"></button>
@@ -811,6 +827,10 @@ function renderSystem(){
 		persist();
 	});
 
+	/* the 52×28 switches are small — let the whole row toggle them */
+	$("sysSoundRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("soundSwitch").click(); });
+	$("sysFxRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("fxSwitch").click(); });
+
 	$("sysEditRow").addEventListener("click", () => { blip("ui"); openFull("loadout"); });
 
 	/* --- contextual protocol row --- */
@@ -834,6 +854,7 @@ function renderSystem(){
 			: await confirmHud("Archive protocol", "Removes it from the 30 Days view. The window stays in the calendar history forever.", { yes: "Archive" });
 		if (!ok) return;
 		prot.archived = true;
+		if (isActive) prot.aborted = true; /* same permanent-red rule as the 30 Days view */
 		persist();
 		renderSystem();
 		toast(isActive ? "Protocol aborted — the log runs on" : "Protocol archived");
@@ -859,8 +880,6 @@ function renderSystem(){
 		renderSystem();
 		toast("All data wiped — loadout kept");
 	});
-
-	fx.decode($("systemTitle"));
 }
 
 /* ---------- backup: export / import (SPEC §6.5, §11) ---------- */
@@ -885,12 +904,14 @@ function importBackup(file){
 	reader.onload = () => {
 		try {
 			state = storage.importJSON(reader.result);
-			persist();
+			const saved = persist();
 			calCursor = null;
 			setSoundEnabled(state.sound);
 			fx.setEnabled(state.fx && !fx.prefersReduced());
 			renderView(currentView);
-			toast("Backup restored");
+			/* don't let a success toast clobber persist()'s failure toast —
+			   an unsaved restore silently reverts on the next launch */
+			if (saved) toast("Backup restored");
 		} catch (err){
 			toast(err.message || "That file isn't a valid backup");
 		}
@@ -987,14 +1008,37 @@ function init(){
 	setInterval(dayTick, 30000);
 	document.addEventListener("visibilitychange", () => { if (!document.hidden) dayTick(); });
 
+	/* another instance saved (installed PWA + browser tab open at once):
+	   whole-state saves are last-write-wins, so re-load and re-render
+	   whenever a sibling writes — otherwise this instance's next save
+	   would silently erase the other's check-offs */
+	window.addEventListener("storage", e => {
+		if (e.key !== storage.STORAGE_KEY || e.newValue === null) return;
+		const fresh = storage.load();
+		if (!fresh) return;
+		state = fresh;
+		setSoundEnabled(state.sound);
+		fx.setEnabled(state.fx && !fx.prefersReduced());
+		renderView(currentView);
+		if (editingKey && !$("dayHud").hidden) renderDayHud(editingKey);
+	});
+
 	/* first paint + boot sequence (SPEC §9) */
 	showView("today", { transition: false });
 	fx.runBoot({
-		fillBar: () => updateMolten(true),
+		zeroBar: () => {
+			const m = $("gMolten");
+			m.style.transition = "none";
+			m.style.width = "0%";
+			void m.offsetWidth;
+			m.style.transition = "";
+		},
+		fillBar: () => updateMolten(false),
 		title: document.querySelector(".brand b"),
 	});
 
-	setTimeout(maybeNudgeBackup, 1600);
+	if (storage.loadNotice) setTimeout(() => toast(storage.loadNotice), 1200);
+	setTimeout(maybeNudgeBackup, 2600);
 
 	/* service worker — cache-first app shell, offline after first load (SPEC §11) */
 	// VERIFY: offline — airplane mode after first load, app fully works, fonts render

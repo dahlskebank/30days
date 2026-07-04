@@ -9,9 +9,11 @@
 
 const CACHE = "30dod-v1.0.0";
 
+/* NOTE: "/" (not "/index.html") — the .htaccess clean-URL rule 301s
+   /index.html to /, and a cached redirected response is rejected by
+   Chrome when replayed for a navigation. "/" returns a direct 200. */
 const SHELL = [
 	"/",
-	"/index.html",
 	"/styles.css",
 	"/app.js",
 	"/model.js",
@@ -38,7 +40,9 @@ const SHELL = [
 self.addEventListener("install", event => {
 	event.waitUntil(
 		caches.open(CACHE)
-			.then(cache => cache.addAll(SHELL))
+			/* cache:"reload" bypasses the HTTP cache — otherwise a deploy could
+			   lock day-old app.js/styles.css (1-day TTL) into the new cache */
+			.then(cache => cache.addAll(SHELL.map(url => new Request(url, { cache: "reload" }))))
 			.then(() => self.skipWaiting())
 	);
 });
@@ -61,7 +65,7 @@ self.addEventListener("fetch", event => {
 	/* any navigation lands on the shell (single page, offline included) */
 	if (request.mode === "navigate"){
 		event.respondWith(
-			caches.match("/index.html").then(hit => hit || fetch(request))
+			caches.match("/").then(hit => hit || fetch(request))
 		);
 		return;
 	}

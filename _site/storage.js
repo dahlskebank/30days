@@ -8,6 +8,7 @@
 import { defaultState, keyOf, effectiveToday } from "./model.js";
 
 const KEY = "thirtyDaysOfDahl.v1";
+export const STORAGE_KEY = KEY; /* app.js listens for cross-instance `storage` events on this */
 export const CURRENT_SCHEMA = 1;
 
 /* Migration scaffolding, alive from day one (SPEC §3.2): this app runs
@@ -61,6 +62,7 @@ function normalize(raw){
 				id: String(p.id || "p" + Math.random().toString(36).slice(2, 8)),
 				start: p.start,
 				...(p.archived ? { archived: true } : {}),
+				...(p.aborted ? { aborted: true } : {}),
 			})) : [],
 		earliest: typeof raw.earliest === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.earliest) ? raw.earliest : null,
 		lastBackupNudge: typeof raw.lastBackupNudge === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.lastBackupNudge) ? raw.lastBackupNudge : todayKey,
@@ -80,23 +82,46 @@ function normalize(raw){
 	return s;
 }
 
+/* When load() had to abandon stored data, this holds a one-line human
+   explanation for app.js to surface as a toast. The abandoned raw text is
+   always stashed under KEY + ".corrupt" first — never silently destroyed,
+   because seed() will overwrite the main key right after. */
+export let loadNotice = null;
+
+function stash(text){
+	try { localStorage.setItem(KEY + ".corrupt", text); }
+	catch (e){ /* quota — nothing more we can do */ }
+}
+
 /* load() → state, migrated and normalized — or null when nothing (or
    nothing salvageable) is stored, in which case the app seeds. */
 export function load(){
+	let text = null;
+	try { text = localStorage.getItem(KEY); }
+	catch (e){ return null; }
+	if (!text) return null;
+
 	let raw = null;
 	try {
-		const text = localStorage.getItem(KEY);
-		if (!text) return null;
 		raw = JSON.parse(text);
 	} catch (e){
+		/* truncated/interrupted write — the most common corruption mode */
+		stash(text);
+		loadNotice = "Stored data was unreadable — stashed for recovery, starting fresh";
+		return null;
+	}
+	if (raw && typeof raw === "object" && (raw.schema || 1) > CURRENT_SCHEMA){
+		/* data written by a FUTURE app version: normalizing would silently
+		   strip fields this version doesn't know about */
+		stash(text);
+		loadNotice = "Data is from a newer app version — stashed for recovery, starting fresh";
 		return null;
 	}
 	try {
 		return normalize(migrate(raw));
 	} catch (e){
-		/* Corrupt beyond repair. Don't overwrite it silently — stash the
-		   wreck under a side key so it can be recovered by hand. */
-		try { localStorage.setItem(KEY + ".corrupt", localStorage.getItem(KEY)); } catch (e2){ /* full */ }
+		stash(text);
+		loadNotice = "Stored data was damaged — stashed for recovery, starting fresh";
 		return null;
 	}
 }
