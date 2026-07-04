@@ -1,285 +1,454 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-	<meta charset="utf-8">
-	<!-- viewport-fit=cover lets the app paint behind notches; safe-area insets in CSS keep
+	<head>
+		<meta charset="utf-8" />
+		<!-- viewport-fit=cover lets the app paint behind notches; safe-area insets in CSS keep
 	     content clear. No maximum-scale: blocking pinch-zoom is an accessibility regression;
 	     touch-action:manipulation on the controls prevents accidental double-tap zoom instead. -->
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, viewport-fit=cover"
+		/>
 
-	<title>30 Days of Dahl — Daily discipline protocol</title>
-	<meta name="description" content="A forever-running daily discipline tracker. Check off the daily loadout, bank the streak, survive the 30-day protocol. Styled after Deus Ex: Human Revolution.">
-	<meta name="author" content="Daniel Dahl">
-	<meta name="robots" content="index, follow">
-	<link rel="canonical" href="https://kiande.com/">
+		<title>30 Days of Dahl — Daily discipline protocol</title>
+		<meta
+			name="description"
+			content="A forever-running daily discipline tracker. Check off the daily loadout, bank the streak, survive the 30-day protocol. Styled after Deus Ex: Human Revolution."
+		/>
+		<meta name="author" content="Daniel Dahl" />
+		<meta name="robots" content="index, follow" />
+		<link rel="canonical" href="https://kiande.com/" />
 
-	<!-- Open Graph (Facebook, Discord, LinkedIn…) -->
-	<meta property="og:type" content="website">
-	<meta property="og:site_name" content="30 Days of Dahl">
-	<meta property="og:locale" content="en_US">
-	<meta property="og:url" content="https://kiande.com/">
-	<meta property="og:title" content="30 Days of Dahl">
-	<meta property="og:description" content="A forever-running daily discipline tracker. The log runs forever — the protocol is the crucible.">
-	<meta property="og:image" content="https://kiande.com/assets/img/og-image.jpg">
-	<meta property="og:image:type" content="image/jpeg">
-	<meta property="og:image:width" content="1200">
-	<meta property="og:image:height" content="630">
-	<meta property="og:image:alt" content="30 Days of Dahl — daily discipline protocol">
+		<!-- Open Graph (Facebook, Discord, LinkedIn…) -->
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="30 Days of Dahl" />
+		<meta property="og:locale" content="en_US" />
+		<meta property="og:url" content="https://kiande.com/" />
+		<meta property="og:title" content="30 Days of Dahl" />
+		<meta
+			property="og:description"
+			content="A forever-running daily discipline tracker. The log runs forever — the protocol is the crucible."
+		/>
+		<meta
+			property="og:image"
+			content="https://kiande.com/assets/img/og-image.jpg"
+		/>
+		<meta property="og:image:type" content="image/jpeg" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta
+			property="og:image:alt"
+			content="30 Days of Dahl — daily discipline protocol"
+		/>
 
-	<!-- Twitter / X card -->
-	<meta name="twitter:card" content="summary_large_image">
-	<meta name="twitter:title" content="30 Days of Dahl">
-	<meta name="twitter:description" content="A forever-running daily discipline tracker. The log runs forever — the protocol is the crucible.">
-	<meta name="twitter:image" content="https://kiande.com/assets/img/og-image.jpg">
+		<!-- Twitter / X card -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="30 Days of Dahl" />
+		<meta
+			name="twitter:description"
+			content="A forever-running daily discipline tracker. The log runs forever — the protocol is the crucible."
+		/>
+		<meta
+			name="twitter:image"
+			content="https://kiande.com/assets/img/og-image.jpg"
+		/>
 
-	<!-- PWA + icons -->
-	<meta name="theme-color" content="#0b0a08">
-	<link rel="manifest" href="/manifest.webmanifest">
-	<link rel="icon" href="/favicon.ico" sizes="48x48">
-	<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-	<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-	<link rel="sitemap" type="application/xml" href="/sitemap.xml">
+		<!-- PWA + icons -->
+		<meta name="theme-color" content="#0b0a08" />
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="icon" href="/favicon.ico" sizes="48x48" />
+		<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+		<link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
-	<!-- Self-hosted fonts: preload the two that paint first (title + body) -->
-	<link rel="preload" href="/fonts/rajdhani-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin>
-	<link rel="preload" href="/fonts/chakra-petch-v13-latin-regular.woff2" as="font" type="font/woff2" crossorigin>
-	<link rel="stylesheet" href="/styles.css">
+		<!-- Self-hosted fonts: preload the two that paint first (title + body) -->
+		<link
+			rel="preload"
+			href="/fonts/rajdhani-v17-latin-700.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
+		<link
+			rel="preload"
+			href="/fonts/chakra-petch-v13-latin-regular.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
+		<link rel="stylesheet" href="/styles.css" />
 
-	<!-- Google Analytics 4 — paste the kiande.com measurement id ("G-XXXXXXXXXX")
+		<!-- Google Analytics 4 — paste the kiande.com measurement id ("G-XXXXXXXXXX")
 	     below to enable. Empty string = analytics fully disabled, nothing loads.
 	     Offline/PWA safe: when there is no network the gtag request just fails silently. -->
-	<script>
-		window.GA_ID = "";
-		if (window.GA_ID) {
-			window.dataLayer = window.dataLayer || [];
-			window.gtag = function () { dataLayer.push(arguments); };
-			gtag("js", new Date());
-			gtag("config", window.GA_ID);
-			var gaScript = document.createElement("script");
-			gaScript.async = true;
-			gaScript.src = "https://www.googletagmanager.com/gtag/js?id=" + window.GA_ID;
-			document.head.appendChild(gaScript);
-		}
-	</script>
+		<script>
+			window.GA_ID = "";
+			if (window.GA_ID) {
+				window.dataLayer = window.dataLayer || [];
+				window.gtag = function () {
+					dataLayer.push(arguments);
+				};
+				gtag("js", new Date());
+				gtag("config", window.GA_ID);
+				var gaScript = document.createElement("script");
+				gaScript.async = true;
+				gaScript.src =
+					"https://www.googletagmanager.com/gtag/js?id=" + window.GA_ID;
+				document.head.appendChild(gaScript);
+			}
+		</script>
 
-	<!-- JSON-LD structured data -->
-	<script type="application/ld+json">
-	{
-		"@context": "https://schema.org",
-		"@type": "WebApplication",
-		"name": "30 Days of Dahl",
-		"url": "https://kiande.com/",
-		"description": "A forever-running daily discipline tracker. Check off the daily loadout, bank the streak, survive the 30-day protocol.",
-		"applicationCategory": "LifestyleApplication",
-		"operatingSystem": "Any",
-		"image": "https://kiande.com/assets/img/og-image.jpg",
-		"author": {
-			"@type": "Person",
-			"name": "Daniel Dahl",
-			"url": "https://danieldahl.com"
-		}
-	}
-	</script>
-</head>
-<body>
-
-	<!-- ======================================================
+		<!-- JSON-LD structured data -->
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebApplication",
+				"name": "30 Days of Dahl",
+				"url": "https://kiande.com/",
+				"description": "A forever-running daily discipline tracker. Check off the daily loadout, bank the streak, survive the 30-day protocol.",
+				"applicationCategory": "LifestyleApplication",
+				"operatingSystem": "Any",
+				"image": "https://kiande.com/assets/img/og-image.jpg",
+				"author": {
+					"@type": "Person",
+					"name": "Daniel Dahl",
+					"url": "https://danieldahl.com"
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<!-- ======================================================
 	     Background composition (SPEC §8) — three fixed layers,
 	     each its own element: they are the parallax planes (§9).
 	     ====================================================== -->
-	<div class="bg" aria-hidden="true">
-		<div class="bg-shaft"></div>
-		<div class="bg-lattice"></div>
-		<div class="bg-shards">
-			<!-- dense cluster top-right, breaking into small drifting fragments -->
-			<svg class="shards-tr" viewBox="0 0 220 230" xmlns="http://www.w3.org/2000/svg">
-				<g fill="#f0b354">
-					<polygon points="180,10 214,26 188,44" opacity=".9"/>
-					<polygon points="150,40 176,30 168,58" opacity=".55"/>
-					<polygon points="200,60 220,52 216,84" opacity=".7"/>
-					<polygon points="130,14 148,8 142,28" opacity=".4"/>
-					<polygon points="168,80 190,72 178,102" opacity=".5"/>
-					<polygon points="120,60 136,52 132,74" opacity=".3"/>
-					<polygon points="196,110 214,102 206,130" opacity=".45"/>
-					<polygon points="150,120 166,112 158,140" opacity=".3"/>
-					<polygon points="180,150 198,144 190,172" opacity=".35"/>
-					<polygon points="205,180 220,174 214,200" opacity=".25"/>
-					<polygon points="100,30 112,24 108,42" opacity=".22"/>
-					<polygon class="shard-drifter" points="160,190 174,184 168,206" opacity=".2"/>
-				</g>
-			</svg>
-			<!-- sparse cluster lower-left -->
-			<svg class="shards-bl" viewBox="0 0 160 180" xmlns="http://www.w3.org/2000/svg">
-				<g fill="#f0b354">
-					<polygon points="20,150 44,140 36,168" opacity=".4"/>
-					<polygon points="60,120 76,114 70,136" opacity=".25"/>
-					<polygon points="10,100 26,92 22,116" opacity=".3"/>
-					<polygon points="44,60 56,54 52,74" opacity=".18"/>
-				</g>
-			</svg>
+		<div class="bg" aria-hidden="true">
+			<div class="bg-shaft"></div>
+			<div class="bg-lattice"></div>
+			<div class="bg-shards">
+				<!-- dense cluster top-right, breaking into small drifting fragments -->
+				<svg
+					class="shards-tr"
+					viewBox="0 0 220 230"
+					xmlns="http://www.w3.org/2000/svg"
+				>
+					<g fill="#f0b354">
+						<polygon points="180,10 214,26 188,44" opacity=".9" />
+						<polygon points="150,40 176,30 168,58" opacity=".55" />
+						<polygon points="200,60 220,52 216,84" opacity=".7" />
+						<polygon points="130,14 148,8 142,28" opacity=".4" />
+						<polygon points="168,80 190,72 178,102" opacity=".5" />
+						<polygon points="120,60 136,52 132,74" opacity=".3" />
+						<polygon points="196,110 214,102 206,130" opacity=".45" />
+						<polygon points="150,120 166,112 158,140" opacity=".3" />
+						<polygon points="180,150 198,144 190,172" opacity=".35" />
+						<polygon points="205,180 220,174 214,200" opacity=".25" />
+						<polygon points="100,30 112,24 108,42" opacity=".22" />
+						<polygon
+							class="shard-drifter"
+							points="160,190 174,184 168,206"
+							opacity=".2"
+						/>
+					</g>
+				</svg>
+				<!-- sparse cluster lower-left -->
+				<svg
+					class="shards-bl"
+					viewBox="0 0 160 180"
+					xmlns="http://www.w3.org/2000/svg"
+				>
+					<g fill="#f0b354">
+						<polygon points="20,150 44,140 36,168" opacity=".4" />
+						<polygon points="60,120 76,114 70,136" opacity=".25" />
+						<polygon points="10,100 26,92 22,116" opacity=".3" />
+						<polygon points="44,60 56,54 52,74" opacity=".18" />
+					</g>
+				</svg>
+			</div>
+			<div class="bg-scanlines"></div>
 		</div>
-		<div class="bg-scanlines"></div>
-	</div>
 
-	<!-- Boot overlay (SPEC §9) — once per session, ~600ms, tap to skip.
+		<!-- Boot overlay (SPEC §9) — once per session, ~600ms, tap to skip.
 	     fx.js drives it; with FX off it is removed instantly. -->
-	<div class="boot" id="boot" aria-hidden="true">
-		<div class="boot-rule"></div>
-		<div class="boot-title" id="bootTitle"></div>
-	</div>
+		<div class="boot" id="boot" aria-hidden="true">
+			<div class="boot-rule"></div>
+			<div class="boot-title" id="bootTitle"></div>
+		</div>
 
-	<!-- ======================================================
+		<!-- ======================================================
 	     Desktop command deck: on phones .deck is invisible
 	     scaffolding (the app fills the screen); ≥ 992px the app
 	     sits centered with a briefing panel to its left and the
 	     site footer below (all desktop-only).
 	     ====================================================== -->
-	<div class="deck">
+		<div class="deck">
+			<aside class="deck-side" aria-label="About this app">
+				<div class="deck-brand">
+					<span class="deck-eyebrow"
+						><span class="tri"></span>Field deployment</span
+					>
+					<div class="deck-title">30 Days<em>of Dahl</em></div>
+					<p class="deck-copy">
+						A forever-running daily discipline tracker. Check off the daily
+						loadout, bank the streak, survive the 30-day protocol. The log runs
+						forever — the protocol is the crucible.
+					</p>
+					<p class="deck-copy dim">
+						Built for the phone in your pocket, not the screen you're looking
+						at. It works here too — but the real thing installs to your home
+						screen and runs fully offline.
+					</p>
+				</div>
+				<div class="deck-qr">
+					<img
+						src="/assets/img/qr-kiande.svg"
+						alt="QR code linking to kiande.com"
+						width="148"
+						height="148"
+					/>
+					<span class="deck-qr-cap">Deploy to your phone<br />kiande.com</span>
+				</div>
+			</aside>
 
-		<aside class="deck-side" aria-label="About this app">
-			<div class="deck-brand">
-				<span class="deck-eyebrow"><span class="tri"></span>Field deployment</span>
-				<div class="deck-title">30 Days<em>of Dahl</em></div>
-				<p class="deck-copy">
-					A forever-running daily discipline tracker. Check off the daily
-					loadout, bank the streak, survive the 30-day protocol.
-					The log runs forever — the protocol is the crucible.
-				</p>
-				<p class="deck-copy dim">
-					Built for the phone in your pocket, not the screen you're
-					looking at. It works here too — but the real thing installs
-					to your home screen and runs fully offline.
-				</p>
-			</div>
-			<div class="deck-qr">
-				<img src="/assets/img/qr-kiande.svg" alt="QR code linking to kiande.com" width="148" height="148">
-				<span class="deck-qr-cap">Deploy to your phone<br>kiande.com</span>
-			</div>
-		</aside>
-
-		<!-- ==================================================
+			<!-- ==================================================
 		     THE APP — everything inside .app is the phone UI.
 		     ================================================== -->
-		<div class="app">
-			<header class="topbar">
-				<h1 class="brand"><b>30 Days</b><span>of Dahl</span></h1>
-				<button class="iconbtn" id="systemBtn" aria-label="System">
-					<!-- hex-gear: hexagon + core, per the symbol grammar (hex = system/energy) -->
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2l8 5v10l-8 5-8-5V7z"/><circle cx="12" cy="12" r="3.2"/></svg>
-				</button>
-			</header>
-			<div class="rule"></div>
+			<div class="app">
+				<header class="topbar">
+					<h1 class="brand"><b>30 Days</b><span>of Dahl</span></h1>
+					<button class="iconbtn" id="systemBtn" aria-label="System">
+						<!-- hex-gear: hexagon + core, per the symbol grammar (hex = system/energy) -->
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linejoin="round"
+						>
+							<path d="M12 2l8 5v10l-8 5-8-5V7z" />
+							<circle cx="12" cy="12" r="3.2" />
+						</svg>
+					</button>
+				</header>
+				<div class="rule"></div>
 
-			<!-- ================= TODAY (SPEC §6.1) ================= -->
-			<main class="screen" id="screen-today">
-				<div class="daymark">
-					<div class="big" id="todayMark">—</div>
-					<div class="date" id="todayDate">—</div>
-				</div>
+				<!-- ================= TODAY (SPEC §6.1) ================= -->
+				<main class="screen" id="screen-today">
+					<div class="daymark">
+						<div class="big" id="todayMark">—</div>
+						<div class="date" id="todayDate">—</div>
+					</div>
 
-				<section class="gauge" aria-label="Today's progress">
-					<div class="gauge-top">
-						<div class="count"><span id="gCount">0</span><i> / <span id="gTotal">0</span></i></div>
-						<div class="readout">
-							<div class="pct" id="gPct">CHARGE 0%</div>
-							<div class="state" id="gState">OFFLINE</div>
+					<section class="gauge" aria-label="Today's progress">
+						<div class="gauge-top">
+							<div class="count">
+								<span id="gCount">0</span><i> / <span id="gTotal">0</span></i>
+							</div>
+							<div class="readout">
+								<div class="pct" id="gPct">CHARGE 0%</div>
+								<div class="state" id="gState">OFFLINE</div>
+							</div>
+						</div>
+						<div class="crucible">
+							<div class="molten" id="gMolten"></div>
+							<div class="ticks" id="gTicks"></div>
+						</div>
+						<!-- overcharge hex cells (bonus) + the all-or-nothing passive triangle -->
+						<div class="cells" id="gCells"></div>
+					</section>
+
+					<div id="todayGroups"></div>
+					<button class="ghost edit-loadout" id="editLoadoutBtn">
+						⌁ Edit loadout
+					</button>
+				</main>
+
+				<!-- ================= 30 DAYS (SPEC §6.2) ================= -->
+				<main class="screen" id="screen-prot" hidden></main>
+
+				<!-- ================= CALENDAR (SPEC §6.3) ================= -->
+				<main class="screen" id="screen-cal" hidden>
+					<div class="cal-head">
+						<div class="mon" id="calMon">—</div>
+						<div class="cal-nav">
+							<button id="calPrev" aria-label="Previous month">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M15 5l-7 7 7 7" />
+								</svg>
+							</button>
+							<button id="calNext" aria-label="Next month">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M9 5l7 7-7 7" />
+								</svg>
+							</button>
 						</div>
 					</div>
-					<div class="crucible">
-						<div class="molten" id="gMolten"></div>
-						<div class="ticks" id="gTicks"></div>
+					<div class="dow">
+						<span>Mo</span><span>Tu</span><span>We</span><span>Th</span
+						><span>Fr</span><span>Sa</span><span>Su</span>
 					</div>
-					<!-- overcharge hex cells (bonus) + the all-or-nothing passive triangle -->
-					<div class="cells" id="gCells"></div>
-				</section>
+					<div class="calgrid" id="calGrid"></div>
+					<div class="cal-note" id="calNote"></div>
+				</main>
 
-				<div id="todayGroups"></div>
-				<button class="ghost edit-loadout" id="editLoadoutBtn">⌁ Edit loadout</button>
-			</main>
+				<!-- ============ LOADOUT — full-screen view (SPEC §6.4) ============ -->
+				<main class="screen screen-full" id="screen-loadout" hidden></main>
 
-			<!-- ================= 30 DAYS (SPEC §6.2) ================= -->
-			<main class="screen" id="screen-prot" hidden></main>
+				<!-- ============ SYSTEM — full-screen view (SPEC §6.5) ============ -->
+				<main class="screen screen-full" id="screen-system" hidden></main>
 
-			<!-- ================= CALENDAR (SPEC §6.3) ================= -->
-			<main class="screen" id="screen-cal" hidden>
-				<div class="cal-head">
-					<div class="mon" id="calMon">—</div>
-					<div class="cal-nav">
-						<button id="calPrev" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-						<button id="calNext" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
-					</div>
-				</div>
-				<div class="dow"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
-				<div class="calgrid" id="calGrid"></div>
-				<div class="cal-note" id="calNote"></div>
-			</main>
+				<!-- chamfered ◄ BACK, pinned bottom-left, only on full-screen views (SPEC §2) -->
+				<button class="backbtn" id="backBtn" hidden>◄ Back</button>
 
-			<!-- ============ LOADOUT — full-screen view (SPEC §6.4) ============ -->
-			<main class="screen screen-full" id="screen-loadout" hidden></main>
+				<!-- ================= NAV (SPEC §2) ================= -->
+				<nav class="nav" id="nav" role="tablist" aria-label="Views">
+					<button id="tab-today" role="tab" aria-selected="true">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M5 13l4 4L19 7" />
+						</svg>
+						Today
+					</button>
+					<button id="tab-prot" role="tab" aria-selected="false">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linejoin="round"
+						>
+							<path d="M12 2l8 5v10l-8 5-8-5V7z" />
+							<path d="M12 8v4l3 2" stroke-linecap="round" />
+						</svg>
+						30 Days
+					</button>
+					<button id="tab-cal" role="tab" aria-selected="false">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<rect x="3" y="4" width="18" height="17" />
+							<path d="M3 9h18M8 2v4M16 2v4" />
+						</svg>
+						Calendar
+					</button>
+				</nav>
+			</div>
+			<!-- /.app -->
 
-			<!-- ============ SYSTEM — full-screen view (SPEC §6.5) ============ -->
-			<main class="screen screen-full" id="screen-system" hidden></main>
-
-			<!-- chamfered ◄ BACK, pinned bottom-left, only on full-screen views (SPEC §2) -->
-			<button class="backbtn" id="backBtn" hidden>◄ Back</button>
-
-			<!-- ================= NAV (SPEC §2) ================= -->
-			<nav class="nav" id="nav" role="tablist" aria-label="Views">
-				<button id="tab-today" role="tab" aria-selected="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
-					Today
-				</button>
-				<button id="tab-prot" role="tab" aria-selected="false">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2l8 5v10l-8 5-8-5V7z"/><path d="M12 8v4l3 2" stroke-linecap="round"/></svg>
-					30 Days
-				</button>
-				<button id="tab-cal" role="tab" aria-selected="false">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
-					Calendar
-				</button>
-			</nav>
-		</div><!-- /.app -->
-
-		<div class="deck-spacer" aria-hidden="true"></div>
-	</div><!-- /.deck -->
-
-	<!-- Desktop-only site footer — the dfault network links -->
-	<footer class="deck-footer">
-		<p class="deck-links">
-			<a href="https://dahlskebank.com" target="_blank" rel="noopener" title="Dahlske Bank">Powered by dB</a><i>/</i><a href="https://danieldahl.com" target="_blank" rel="noopener" title="Daniel Dahl">Fueled by dD</a><i>/</i><a href="https://dxd.no" target="_blank" rel="noopener" title="deus ex Dahl">Pinnacle of dxD</a><i>/</i><a href="https://dfault.it" target="_blank" rel="noopener" title="D-Fault Pending">D-Fault Pending</a>
-		</p>
-		<p class="deck-legal">© 1984 ⌁ <span id="footYear">2026</span> → <a href="https://danieldahl.com" title="Daniel Dahl">Daniel Dahl</a> · <span id="footVersion">v1.0.0</span></p>
-	</footer>
-
-	<!-- ============ Day editor — hard-edged chamfered HUD panel (SPEC §2) ============ -->
-	<div class="scrim" id="scrim"></div>
-	<div class="hud" id="dayHud" role="dialog" aria-modal="true" aria-label="Edit day" hidden>
-		<div class="hud-head">
-			<h2 id="dhTitle">Day</h2>
-			<span class="heatpill" id="dhHeat">0%</span>
+			<div class="deck-spacer" aria-hidden="true"></div>
 		</div>
-		<div class="hud-sub" id="dhDate">—</div>
-		<div id="dhTasks"></div>
-		<button class="donebtn" id="dhDone">Confirm</button>
-	</div>
+		<!-- /.deck -->
 
-	<!-- ============ Confirm HUD — DXHR-styled replacement for confirm() ============ -->
-	<div class="hud hud-confirm" id="confirmHud" role="dialog" aria-modal="true" aria-label="Confirm" hidden>
-		<div class="hud-head"><h2 id="chTitle">Confirm</h2></div>
-		<p class="hud-msg" id="chMsg"></p>
-		<div class="hud-actions">
-			<button class="ghost" id="chNo">Cancel</button>
-			<button class="donebtn" id="chYes">Confirm</button>
+		<!-- Desktop-only site footer — the dfault network links -->
+		<footer class="deck-footer">
+			<p class="deck-links">
+				<a
+					href="https://dahlskebank.com"
+					target="_blank"
+					rel="noopener"
+					title="Dahlske Bank"
+					>Powered by dB</a
+				><i>/</i
+				><a
+					href="https://danieldahl.com"
+					target="_blank"
+					rel="noopener"
+					title="Daniel Dahl"
+					>Fueled by dD</a
+				><i>/</i
+				><a
+					href="https://dxd.no"
+					target="_blank"
+					rel="noopener"
+					title="deus ex Dahl"
+					>Pinnacle of dxD</a
+				><i>/</i
+				><a
+					href="https://dfault.it"
+					target="_blank"
+					rel="noopener"
+					title="D-Fault Pending"
+					>D-Fault Pending</a
+				>
+			</p>
+			<p class="deck-legal">
+				© 1983 ⌁ <span id="footYear">2026</span> →
+				<a href="https://danieldahl.com" title="KiAnDe">KiAnDe.com</a> ·
+				<span id="footVersion">v1.0.1</span>
+			</p>
+		</footer>
+
+		<!-- ============ Day editor — hard-edged chamfered HUD panel (SPEC §2) ============ -->
+		<div class="scrim" id="scrim"></div>
+		<div
+			class="hud"
+			id="dayHud"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Edit day"
+			hidden
+		>
+			<div class="hud-head">
+				<h2 id="dhTitle">Day</h2>
+				<span class="heatpill" id="dhHeat">0%</span>
+			</div>
+			<div class="hud-sub" id="dhDate">—</div>
+			<div id="dhTasks"></div>
+			<button class="donebtn" id="dhDone">Confirm</button>
 		</div>
-	</div>
 
-	<input type="file" id="fileInput" accept="application/json" hidden>
-	<div class="toast" id="toast" role="status" aria-live="polite"></div>
+		<!-- ============ Confirm HUD — DXHR-styled replacement for confirm() ============ -->
+		<div
+			class="hud hud-confirm"
+			id="confirmHud"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Confirm"
+			hidden
+		>
+			<div class="hud-head"><h2 id="chTitle">Confirm</h2></div>
+			<p class="hud-msg" id="chMsg"></p>
+			<div class="hud-actions">
+				<button class="ghost" id="chNo">Cancel</button>
+				<button class="donebtn" id="chYes">Confirm</button>
+			</div>
+		</div>
 
-	<noscript>
-		<div class="noscript">30 DAYS OF DAHL requires JavaScript — there is no server, everything runs on this device.</div>
-	</noscript>
+		<input type="file" id="fileInput" accept="application/json" hidden />
+		<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-	<script type="module" src="/app.js"></script>
-</body>
+		<noscript>
+			<div class="noscript">
+				30 DAYS OF DAHL requires JavaScript — there is no server, everything
+				runs on this device.
+			</div>
+		</noscript>
+
+		<script type="module" src="/app.js"></script>
+	</body>
 </html>
