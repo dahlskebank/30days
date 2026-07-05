@@ -1,29 +1,25 @@
 /* ============================================================
    sound.js — check-off soundboard + Web Audio synth fallback.
 
+   FILE NAMING CONVENTION (owner's): every file in /sounds is
+   prefixed with the event it belongs to (check_, uncheck_,
+   allcore_, …). Files starting with "_" are unused/benched.
+   Add a file → drop it in /sounds with the right prefix, add it
+   to the pool below AND to the SOUNDS list in sw.js, bump CACHE.
+
    ONE VOICE CHANNEL: samples never stack. Two modes, switchable
    in System → "Smart burst" (state.soundMode):
 
-     "smart"     (C, default) — a new sample interrupts the current
-                 one, EXCEPT during a rapid burst: taps landing
-                 within BURST_MS of the last started quote fall back
-                 to the short synth blip so machine-gun checking
-                 ticks instead of stuttering quotes. Milestone
-                 events (section / all-core / initiate) are marked
-                 `important` and always interrupt.
-
-     "interrupt" (A) — every event stops the current sample and
-                 plays its own. Simple, always talks, can stutter.
-
-   Named events map to sample pools in /sounds (random pick when a
-   pool has several files). Pools can be empty — the event then
-   falls back to a synthesized blip, or stays silent when the
-   fallback is null. Inventory + empty slots: SOUNDS.md at the
-   project root.
+     "interrupt" (A, default) — every event stops the current
+                 sample and plays its own.
+     "smart"     (C) — same, except taps landing within BURST_MS
+                 of the last started quote fall back to the short
+                 synth blip (machine-gun checking ticks instead of
+                 stuttering quotes). `important` events always talk.
    ============================================================ */
 
 let enabled = true;
-let mode = "smart"; /* "smart" (C) | "interrupt" (A) */
+let mode = "interrupt"; /* "interrupt" (A) | "smart" (C) */
 let ctx = null;
 
 /* the single voice channel */
@@ -36,38 +32,47 @@ export function setEnabled(on) {
 	enabled = !!on;
 }
 export function setMode(m) {
-	mode = m === "interrupt" ? "interrupt" : "smart";
+	mode = m === "smart" ? "smart" : "interrupt";
 }
-
-/* ---------- sample pools ---------- */
-const DUDE_CHECKS = [
-	"dude_hehhehheh.mp3",
-	"dude_idefinitelyneed.mp3",
-	"dude_ididntexpectthat.mp3",
-	"dude_idontthinkso.mp3",
-	"dude_ifeelbetter.mp3",
-	"dude_igottafindmore.mp3",
-	"dude_iknewit.mp3",
-	"dude_iknewit2.mp3",
-	"dude_map_found3.mp3",
-	"dude_nowtheflowers.mp3",
-	"dude_thatcantbegood.wav",
-	"dude_thatmustbetheone.mp3",
-	"dude_thatsclearly.mp3",
-	"dude_yess.mp3",
-];
 
 /* event → { pool, fallback synth kind (null = silent when pool empty),
    important: milestone sounds that always interrupt, never burst-tick } */
 const SFX = {
-	check: { pool: DUDE_CHECKS, fallback: "check" },
-	uncheck: { pool: ["oh-good-bale.mp3"], fallback: "uncheck" },
-	section: { pool: ["dude_aahthatsthestuff.mp3"], fallback: "check", important: true },
-	allcore: { pool: ["serious-sam-extra-life.mp3"], fallback: "full", important: true },
-	allbonus: { pool: [], fallback: null }, /* OVERCLOCKED — no file yet */
-	allpassive: { pool: [], fallback: null }, /* all passive rules online — no file yet */
-	initiate: { pool: [], fallback: "full", important: true }, /* protocol initiated */
+	check: {
+		pool: [
+			"check_dude_hehhehheh.mp3",
+			"check_dude_idefinitelyneed.mp3",
+			"check_dude_ididntexpectthat.mp3",
+			"check_dude_igottafindmore.mp3",
+			"check_dude_map_found3.mp3",
+			"check_dude_thatmustbetheone.mp3",
+			"check_dude_yess.mp3",
+		],
+		fallback: "check",
+	},
+	uncheck: {
+		pool: [
+			"uncheck_dk_FX108_chicken.mp3",
+			"uncheck_dk_FX109_chicken.mp3",
+			"uncheck_dk_FX194_bwaff.mp3",
+			"uncheck_dk_FX242_femscream.mp3",
+			"uncheck_dk_FX243_femscream.mp3",
+			"uncheck_dk_FX244_femscream.mp3",
+			"uncheck_dk_FX250_femscream.mp3",
+			"uncheck_dude_thatcantbegood.wav",
+			"uncheck_dude_thatsclearly.mp3",
+		],
+		fallback: "uncheck",
+	},
+	section: { pool: ["section_dude_aahthatsthestuff.mp3"], fallback: "check", important: true },
+	allcore: { pool: ["allcore_serious-sam-extra-life.mp3"], fallback: "full", important: true },
+	allbonus: { pool: ["allbonus_dude_ifeelbetter.mp3"], fallback: null, important: true },
+	allpassive: { pool: ["allpassive_check_dude_nowtheflowers.mp3"], fallback: null, important: true },
+	initiate: { pool: ["initiate_dk_FX93_pants.mp3"], fallback: "full", important: true },
+	soundtoggle: { pool: ["sound_toggle_FX154.mp3"], fallback: "check", important: true },
+	wipe: { pool: ["wipe_oh-good-bale.mp3"], fallback: null, important: true },
 	fail: { pool: [], fallback: null }, /* protocol failed — no file yet */
+	delete: { pool: [], fallback: "delete" }, /* removing a task/group — synth zap */
 	nav: { pool: [], fallback: "nav" },
 	ui: { pool: [], fallback: "ui" },
 };
@@ -123,6 +128,22 @@ function tone(c, freq, t0, dur, vol) {
 	o.stop(t0 + dur + 0.02);
 }
 
+/* downward frequency zap — reads as "removed / powered down" */
+function zap(c, from, to, t0, dur, vol) {
+	const o = c.createOscillator(),
+		g = c.createGain();
+	o.type = "triangle";
+	o.frequency.setValueAtTime(from, t0);
+	o.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+	g.gain.setValueAtTime(0, t0);
+	g.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+	g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+	o.connect(g);
+	g.connect(c.destination);
+	o.start(t0);
+	o.stop(t0 + dur + 0.02);
+}
+
 function synth(kind) {
 	const c = ac();
 	if (!c) return;
@@ -139,6 +160,11 @@ function synth(kind) {
 			tone(c, 659, t, 0.09, 0.11);
 			tone(c, 880, t + 0.09, 0.09, 0.11);
 			tone(c, 1318, t + 0.18, 0.22, 0.12);
+			break;
+		case "delete":
+			/* falling zap + a low thud at the bottom — something got shredded */
+			zap(c, 620, 140, t, 0.16, 0.1);
+			tone(c, 110, t + 0.13, 0.09, 0.08);
 			break;
 		case "nav":
 			tone(c, 523, t, 0.05, 0.07);

@@ -1,46 +1,44 @@
 # Sound inventory — Protocol (kiande.com)
 
 Files live in `_site/sounds/` and are wired in `_site/sound.js` (the `SFX`
-map at the top). Every event either plays a random file from its pool, or
-falls back to the original synthesized blip when the pool is empty ("synth"
-below), or stays silent. To swap a sound: drop the file in `_site/sounds/`,
-add its filename to the pool in `sound.js`, and add it to the `SHELL` list
-in `sw.js` (then bump `CACHE`) so it works offline.
+map). **Naming convention: the filename prefix = the event it plays on**
+(`check_`, `uncheck_`, `allcore_`, …). Files starting with `_` are benched /
+unused. To add or swap a sound: drop it in `_site/sounds/` with the right
+prefix, add the filename to the matching pool in `sound.js`, add it to the
+`SOUNDS` list in `sw.js`, bump `CACHE`.
 
-Sample volume is `SAMPLE_VOLUME` in `sound.js` (currently 0.7).
+One voice channel — samples never stack. Two modes via System → Smart
+burst: OFF (default) = every event interrupts with a fresh sample; ON =
+rapid taps within 600ms fall back to synth blips, milestones always talk.
+Sample volume: `SAMPLE_VOLUME` in sound.js (0.7).
 
-## Events with files (working now)
+## Wired events
 
-| Event | Trigger | File(s) |
+| Event | Trigger | Pool |
 |---|---|---|
-| `check` | checking any task | random pick of the 14 `dude_*` files (all except aahthatsthestuff) |
-| `uncheck` | unchecking a task | `oh-good-bale.mp3` |
-| `section` | every task in a group done | `dude_aahthatsthestuff.mp3` |
-| `allcore` | 100% core — AUGMENTED | `serious-sam-extra-life.mp3` |
+| `check` | checking any task (core/bonus/passive alike) | 7 × `check_dude_*` |
+| `uncheck` | unchecking a task | 9 × `uncheck_*` (chickens, bwaff, screams, Dude) |
+| `section` | every task in a group done | `section_dude_aahthatsthestuff` |
+| `allcore` | 100% core — AUGMENTED | `allcore_serious-sam-extra-life` |
+| `allbonus` | every bonus task checked — OVERCLOCKED | `allbonus_dude_ifeelbetter` |
+| `allpassive` | last passive rule checked | `allpassive_check_dude_nowtheflowers` |
+| `initiate` | protocol initiated / start over | `initiate_dk_FX93_pants` |
+| `soundtoggle` | Sounds switch flipped (both directions) | `sound_toggle_FX154` |
+| `wipe` | wipe all data · reset protocol (testing) | `wipe_oh-good-bale` |
+| `delete` | deleting a task or group in Loadout | synth "falling zap + thud" |
+| `nav` / `ui` | tab switch / generic buttons | synth ticks (kept per owner) |
 
-Only one sample plays per tap. Priority when several trigger at once:
-**all-core → section complete → all-passive → all-bonus → plain check.**
+Priority per tap: **all-core → section → all-passive → all-bonus → check.**
 
-## Events waiting for a file (currently silent — find replacements)
+## Benched (unused, kept in the folder)
+
+- `_dude_iknewit.mp3`, `_dude_iknewit2.mp3` — candidate: the `fail` event
+  (protocol just died — "I knew it" is grimly perfect)
+- `_dude_idontthinkso.mp3` — candidate: Cancel in a confirm dialog, or a
+  future "tap on a disabled/future day" denial sound
+
+## Empty slots
 
 | Event | Trigger | Current behavior |
 |---|---|---|
-| `allpassive` | last passive rule checked (triangle flips gold) | silent (spec originally wanted passives silent — your call) |
-| `allbonus` | every bonus task checked — OVERCLOCKED | silent |
-| `fail` | protocol status flips to FAILED | not wired yet — needs a file AND a trigger decision (play when the failing day commits? when you first open the app after?) |
-
-## Events on synth blips (could take files too)
-
-| Event | Trigger | Current behavior |
-|---|---|---|
-| `initiate` | protocol initiated / start over | synth ascending arpeggio (659–880–1318 Hz) |
-| `nav` | switching tabs | synth 523 Hz tick |
-| `ui` | opening menus, confirms, misc buttons | synth 740 Hz tick |
-| sound toggle ON | confirmation in System | plays the `check` event |
-
-## Ideas for more moments (nothing wired)
-
-- Streak milestones (day 7 / 14 / 21 in a protocol)
-- SUSTAINED reached (day 30 completes — bigger than allcore?)
-- Backup exported
-- Wipe confirmed (something ominous)
+| `fail` | protocol status flips to FAILED | not wired — needs a file AND a trigger decision (when the failing day commits? on next app open?) |

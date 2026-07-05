@@ -192,6 +192,14 @@ html {
 	outline-offset: 2px;
 }
 
+/* The hidden ATTRIBUTE only works via the browser's built-in
+   [hidden]{display:none} — which any author display rule (like
+   .menu-row{display:flex}) silently overrides. This makes hidden
+   mean hidden, everywhere, always. */
+[hidden] {
+	display: none !important;
+}
+
 /* ============================================================
    BACKGROUND COMPOSITION (SPEC §8) — three fixed layers, each its
    own element because they are the parallax planes (SPEC §9):
@@ -419,6 +427,10 @@ html {
 	height: 100%;
 	min-height: 0;
 	overflow-y: auto;
+	/* clip X explicitly: overflow-y:auto silently upgrades overflow-x from
+	   visible to auto, so any stray horizontal overflow became a real
+	   scrollbar competing with the swipe gesture */
+	overflow-x: clip;
 	overscroll-behavior: contain;
 	padding: 14px 18px 28px;
 }
@@ -450,6 +462,13 @@ html {
 }
 .eyebrow .status-failed {
 	color: var(--danger);
+}
+/* centered variant (30 Days window dates): no trailing hairline */
+.eyebrow-center {
+	justify-content: center;
+}
+.eyebrow-center::after {
+	display: none;
 }
 
 /* ============================================================
@@ -942,8 +961,14 @@ body.marks-right .task .label {
 .hive-row + .hive-row {
 	margin-top: -11px;
 }
+/* split the honeycomb offset symmetrically (±half) — a one-sided +31.5px
+   shift pushed even rows past the screen edge on 390px phones, creating a
+   ~10px horizontal scroll that fought the swipe gesture */
+.hive-row:nth-child(odd) {
+	transform: translateX(-15.75px);
+}
 .hive-row:nth-child(even) {
-	transform: translateX(31.5px);
+	transform: translateX(15.75px);
 }
 .hex {
 	position: relative;
@@ -2246,8 +2271,11 @@ body.boot-s2 .gauge {
 		width: 52px;
 		height: 58px;
 	}
+	.hive-row:nth-child(odd) {
+		transform: translateX(-14.25px);
+	}
 	.hive-row:nth-child(even) {
-		transform: translateX(28.5px);
+		transform: translateX(14.25px);
 	}
 	.hive-row + .hive-row {
 		margin-top: -10px;

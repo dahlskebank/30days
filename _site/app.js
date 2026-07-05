@@ -43,7 +43,7 @@ import {
 } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.2.0";
+const APP_VERSION = "v1.2.1";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -72,6 +72,13 @@ function esc(s) {
 }
 function todayKey() {
 	return keyOf(effectiveToday(state.rolloverHour));
+}
+/* compact protocol-window dates: 05-07-26 */
+function fmtDDMMYY(d) {
+	const p2 = (n) => String(n).padStart(2, "0");
+	return (
+		p2(d.getDate()) + "-" + p2(d.getMonth() + 1) + "-" + String(d.getFullYear()).slice(-2)
+	);
 }
 function fmtShort(d) {
 	return (
@@ -574,7 +581,7 @@ function renderProt({ entering = false } = {}) {
 
 	const head = document.createElement("div");
 	head.innerHTML = `
-		<div class="eyebrow"><span class="tri"></span><span>Protocol · ${fmtShort(st.startD)} → ${fmtShort(endD)}${statusWord}</span></div>
+		<div class="eyebrow eyebrow-center"><span class="tri"></span><span>${fmtDDMMYY(st.startD)} → ${fmtDDMMYY(endD)}${statusWord}</span></div>
 		<div class="streak">
 			<div class="num ${streak === 0 ? "zero" : ""}">${streak}</div>
 			<div class="lbl">Day streak</div>
@@ -750,6 +757,7 @@ async function resetProtocol() {
 	if (!ok) return;
 	state.protocols.splice(state.protocols.indexOf(prot), 1);
 	persist();
+	blip("wipe");
 	renderAll();
 	refreshOpenPanels();
 	toast("Protocol reset — as if it never happened");
@@ -1030,7 +1038,7 @@ function loadoutGroupEl(g, gi) {
 		}
 		state.groups.splice(gi, 1);
 		persist();
-		blip("ui");
+		blip("delete");
 		renderLoadout();
 	});
 	head.appendChild(delG);
@@ -1074,7 +1082,7 @@ function loadoutGroupEl(g, gi) {
 		del.addEventListener("click", () => {
 			g.tasks.splice(ti, 1);
 			persist();
-			blip("ui");
+			blip("delete");
 			renderLoadout();
 			toast(`Removed "${t.label}"`);
 		});
@@ -1228,10 +1236,18 @@ function renderSystem() {
 	/* --- sound: toggling ON plays the check sound as confirmation (SPEC §10) --- */
 	$("soundSwitch").addEventListener("click", (e) => {
 		state.sound = !state.sound;
-		setSoundEnabled(state.sound);
+		if (state.sound) {
+			/* turning ON: enable first, then the confirmation chirp */
+			setSoundEnabled(true);
+			blip("soundtoggle");
+		} else {
+			/* turning OFF: fire the goodbye chirp BEFORE disabling — the
+			   sample keeps playing, everything after this stays silent */
+			blip("soundtoggle");
+			setSoundEnabled(false);
+		}
 		e.currentTarget.setAttribute("aria-checked", state.sound);
 		persist();
-		if (state.sound) blip("check");
 	});
 
 	/* --- FX master toggle (SPEC §9) --- */
@@ -1363,6 +1379,7 @@ function renderSystem() {
 		state.earliest = tk;
 		state.lastBackupNudge = tk;
 		persist();
+		blip("wipe");
 		calCursor = null;
 		renderAll();
 		renderSystem();

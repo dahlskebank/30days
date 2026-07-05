@@ -46,27 +46,34 @@ export function effectiveToday(rolloverHour){
 	return d;
 }
 
-/* ---------- default loadout (SPEC §5) ----------
-   Standard tasks carry fixed std_* ids so "Restore standard" can merge. */
+/* ---------- default loadout (owner's baseline, revised 2026-07-05) ----------
+   Standard tasks carry fixed std_* ids so "Restore standard" can merge.
+   Note: restore only re-ADDS missing ids — it never edits labels/tiers of
+   tasks that already exist, so existing installs keep their versions. */
 export function stdGroups(){
 	return [
 		{ id: "std_g_training", name: "Training", tasks: [
-			{ id: "std_pushups",  label: "100 pushups",                 tier: "core" },
-			{ id: "std_situps",   label: "100 situps",                  tier: "core" },
-			{ id: "std_squats",   label: "100 body squats",             tier: "core" },
+			{ id: "std_rowing",    label: "6 min Rowing",                tier: "bonus" },
+			{ id: "std_powerlift", label: "45 min Powerlift",            tier: "bonus" },
+			{ id: "std_squats",    label: "100 squats",                  tier: "core" },
+			{ id: "std_situps",    label: "100 situps",                  tier: "core" },
+			{ id: "std_pushups",   label: "100 pushups",                 tier: "core" },
+			{ id: "std_shake",     label: "Shake+Banan",                 tier: "passive" },
 		]},
 		{ id: "std_g_routine", name: "Routine", tasks: [
-			{ id: "std_wake",     label: "Wake at 05:00",               tier: "core" },
-			{ id: "std_cold",     label: "Cold shower",                 tier: "bonus" },
-			{ id: "std_meals",    label: "3 meals max — no snacking",   tier: "passive" },
-			{ id: "std_dress",    label: "Dress your best",             tier: "passive" },
-			{ id: "std_nofap",    label: "No porn, no fap",             tier: "passive" },
-			{ id: "std_posture",  label: "Posture + eye contact",       tier: "passive" },
-			{ id: "std_notebook", label: "Notebook & pen on you",       tier: "passive" },
+			{ id: "std_wake",     label: "Wake-up 05:00",                tier: "core" },
+			{ id: "std_cold",     label: "Cold shower",                  tier: "bonus" },
+			{ id: "std_meals",    label: "3 meals max",                  tier: "passive" },
+			{ id: "std_nosnack",  label: "No snacking",                  tier: "passive" },
+			{ id: "std_nofap",    label: "No porn, no fap",              tier: "bonus" },
+			{ id: "std_dress",    label: "Dress your best",              tier: "passive" },
+			{ id: "std_teeth_am", label: "Brush teeth morning",          tier: "passive" },
+			{ id: "std_teeth_pm", label: "Brush teeth evening",          tier: "passive" },
+			{ id: "std_posture",  label: "Posture + eye contact",        tier: "passive" },
 		]},
 		{ id: "std_g_work", name: "Work", tasks: [
-			{ id: "std_todo",     label: "Complete today's to-do list", tier: "passive" },
-			{ id: "std_goal",     label: "One step toward the goal",    tier: "passive" },
+			{ id: "std_notebook", label: "Notebook & pen on you",        tier: "passive" },
+			{ id: "std_todo",     label: "Complete today's to-do list",  tier: "passive" },
 		]},
 	];
 }
