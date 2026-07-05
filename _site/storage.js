@@ -47,7 +47,7 @@ function normalize(raw){
 		sound: raw.sound !== false,
 		fx: raw.fx !== false,
 		marksRight: raw.marksRight === true, /* checkmark on the right side of task rows */
-		soundMode: raw.soundMode === "interrupt" ? "interrupt" : "smart", /* smart burst (C) vs always-interrupt (A) */
+		soundMode: raw.soundMode === "smart" ? "smart" : "interrupt", /* always-interrupt (A, default) vs smart burst (C) */
 		brandName: typeof raw.brandName === "string" && raw.brandName.trim() ? raw.brandName.trim().slice(0, 24) : "Protocol",
 		groups: raw.groups.map(g => ({
 			id: String(g.id || "g" + Math.random().toString(36).slice(2, 8)),

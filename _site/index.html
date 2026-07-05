@@ -221,25 +221,29 @@
 		     the swipe track fills the middle, nav pinned below.
 		     ================================================== -->
 			<div class="app">
-				<header class="topbar">
-					<h1 class="brand">
-						<b>Protocol</b><span>Discipline · Augmented</span>
-					</h1>
-					<button class="iconbtn" id="systemBtn" aria-label="System menu">
-						<!-- hex-gear: hexagon + core, per the symbol grammar (hex = system/energy) -->
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.8"
-							stroke-linejoin="round"
-						>
-							<path d="M12 2l8 5v10l-8 5-8-5V7z" />
-							<circle cx="12" cy="12" r="3.2" />
-						</svg>
-					</button>
-				</header>
-				<div class="rule"></div>
+				<!-- overlay header: screens scroll under it; it slides away on
+				     scroll-down and returns on any scroll-up (app.js initHeadHide) -->
+				<div class="apphead" id="apphead">
+					<header class="topbar">
+						<h1 class="brand">
+							<b>Protocol</b><span>Discipline · Augmented</span>
+						</h1>
+						<button class="iconbtn" id="systemBtn" aria-label="System menu">
+							<!-- hex-gear: hexagon + core, per the symbol grammar (hex = system/energy) -->
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.8"
+								stroke-linejoin="round"
+							>
+								<path d="M12 2l8 5v10l-8 5-8-5V7z" />
+								<circle cx="12" cy="12" r="3.2" />
+							</svg>
+						</button>
+					</header>
+					<div class="rule"></div>
+				</div>
 
 				<!-- swipeable viewport: the three tab screens sit side by side
 			     in .track and slide as one strip (tap a tab or swipe) -->
@@ -406,7 +410,7 @@
 			<p class="deck-legal">
 				© 1983 ⌁ <span id="footYear">2026</span> →
 				<a href="https://danieldahl.com" title="KiAnDe">KiAnDe.com</a> ·
-				<span id="footVersion">v1.1.6</span>
+				<span id="footVersion">v1.1.7</span>
 			</p>
 		</footer>
 

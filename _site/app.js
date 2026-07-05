@@ -39,7 +39,7 @@ import {
 import { blip, setEnabled as setSoundEnabled, setMode as setSoundMode } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.1.4";
+const APP_VERSION = "v1.1.7";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -183,8 +183,31 @@ function showTab(i, { silent = false } = {}) {
 		$("screen-" + t).inert = k !== i;
 	});
 	if (changed && !silent) blip("nav");
+	if (changed) $("apphead").classList.remove("hidden"); /* landing on a tab re-reveals the header */
 	/* billet cascade on entering 30 Days (SPEC §9) */
 	if (changed && TAB_IDS[i] === "prot") renderProt({ entering: true });
+}
+
+/* Header hide-on-scroll: scrolling down slides the overlay header away
+   (content space), any scroll-up brings it back without going to the top.
+   Each tab screen is its own scroll container, so each gets a listener. */
+function initHeadHide() {
+	const head = $("apphead");
+	document.querySelectorAll(".screen").forEach((sc) => {
+		let last = 0;
+		sc.addEventListener(
+			"scroll",
+			() => {
+				const y = sc.scrollTop;
+				const dy = y - last;
+				last = y;
+				if (y < 48) head.classList.remove("hidden"); /* near the top: always show */
+				else if (dy > 4) head.classList.add("hidden");
+				else if (dy < -4) head.classList.remove("hidden");
+			},
+			{ passive: true },
+		);
+	});
 }
 
 /* swipe engine: vertical scrolling stays native (touch-action:pan-y on the
@@ -423,12 +446,11 @@ function groupEl(group, key, live) {
 		btn.dataset.tier = t.tier;
 		btn.dataset.taskId = t.id;
 		btn.setAttribute("aria-pressed", isDone);
-		/* tier tag only for non-core; whole row toggles */
+		/* tier lives in the triangle itself, no text tags: core = gold
+		   outline, bonus = gold outline + micro-hex at the corner (hex =
+		   overcharge per the symbol grammar), passive = faint grey outline */
 		btn.innerHTML =
-			`<span class="mark"></span>` +
-			(t.tier !== "core"
-				? `<span class="tag">${t.tier.toUpperCase()}</span>`
-				: "") +
+			`<span class="mark">${t.tier === "bonus" ? '<i class="mhex"></i>' : ""}</span>` +
 			`<span class="label">${esc(t.label)}</span>`;
 		btn.addEventListener("click", () => onToggleTask(key, t, group, live));
 		wrap.appendChild(btn);
@@ -1405,6 +1427,7 @@ function init() {
 		$("tab-" + t).addEventListener("click", () => showTab(i)),
 	);
 	initSwipe();
+	initHeadHide();
 
 	/* panels */
 	$("systemBtn").addEventListener("click", () => {

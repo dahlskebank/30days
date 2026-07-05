@@ -313,8 +313,26 @@ html {
 	height: 100dvh;
 	display: flex;
 	flex-direction: column;
-	padding-top: env(safe-area-inset-top);
 	overflow: clip; /* not `hidden`: hidden creates a scroll container that focus() can shift sideways */
+	/* header overlay height — screens pad down by this so content starts
+	   below the (visible) header but can scroll underneath it */
+	--headh: calc(env(safe-area-inset-top) + 76px);
+}
+
+/* overlay header: hides on scroll-down, returns on scroll-up (Material
+   "app bar hide on scroll") — absolute so hiding costs no layout shift */
+.apphead {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 4;
+	padding-top: env(safe-area-inset-top);
+	background: linear-gradient(180deg, var(--void) 0%, var(--void) 88%, transparent);
+	transition: transform 0.26s var(--ease);
+}
+.apphead.hidden {
+	transform: translateY(-103%);
 }
 
 /* ---------- swipe track: the three tab screens side by side ---------- */
@@ -411,7 +429,8 @@ html {
 	min-height: 0;
 	overflow-y: auto;
 	overscroll-behavior: contain;
-	padding: 14px 18px 28px;
+	/* top padding clears the overlay header (see --headh on .app) */
+	padding: calc(var(--headh) + 12px) 18px 28px;
 }
 
 .eyebrow {
@@ -821,6 +840,31 @@ html {
 	animation: markburst 0.45s var(--ease);
 }
 
+/* ---- tier is encoded in the triangle, no text tags ----
+   PASSIVE: faint grey outline (standing rules are quiet — echoes the
+   grey passive indicator in the gauge). Fills gold like the rest when
+   checked; the tier info matters while it's still unchecked. */
+.task[data-tier="passive"]:not([data-done="true"]) .mark::before {
+	background: var(--hair-2);
+}
+/* BONUS: a micro-hexagon docked at the triangle's corner — hexes mean
+   overcharge in this app's symbol grammar, so the mark says "feeds the
+   cells". Lights up with the check. */
+.task .mark .mhex {
+	position: absolute;
+	right: -4px;
+	bottom: -3px;
+	width: 10px;
+	height: 11px;
+	z-index: 2;
+	clip-path: polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%);
+	background: var(--gold-lo);
+	transition: background 0.25s;
+}
+.task[data-done="true"] .mark .mhex {
+	background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+}
+
 .task .label {
 	flex: 1;
 	font-weight: 500;
@@ -828,21 +872,6 @@ html {
 	letter-spacing: 0.02em;
 	text-align: right;
 	transition: color 0.2s;
-}
-.task .tag {
-	flex: none;
-	font-family: var(--disp);
-	font-weight: 700;
-	font-size: 10px;
-	letter-spacing: 0.18em;
-	padding: 2px 7px;
-	border: 1px solid var(--hair-2);
-	color: var(--faint);
-	clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
-}
-.task[data-tier="bonus"] .tag {
-	color: var(--gold);
-	border-color: var(--gold-lo);
 }
 
 .edit-loadout {
