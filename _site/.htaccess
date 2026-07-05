@@ -101,20 +101,31 @@ AddType audio/wav wav
 	AddOutputFilterByType DEFLATE application/json application/manifest+json image/svg+xml
 </IfModule>
 
-# --- Cache static assets ---
+# ============================================================
+# --- HTTP caching DISABLED during test-in-production ---
+# Everything revalidates on every request (304s keep it cheap via
+# Last-Modified), so the live server can never hand out a stale file.
+# TO RE-ENABLE FOR LAUNCH: delete the no-cache block below and
+# uncomment the mod_expires block under it.
+# ============================================================
+<IfModule mod_headers.c>
+	Header set Cache-Control "no-cache"
+</IfModule>
+
+# --- Cache static assets (RE-ENABLE AT LAUNCH — see banner above) ---
 # No cache-busting query strings in this project, so CSS/JS get a short
 # TTL; the service worker handles real caching for returning visitors.
-<IfModule mod_expires.c>
-	ExpiresActive On
-	ExpiresByType text/html "access plus 0 seconds"
-	ExpiresByType application/manifest+json "access plus 1 day"
-	ExpiresByType text/css "access plus 1 day"
-	ExpiresByType application/javascript "access plus 1 day"
-	ExpiresByType image/jpeg "access plus 1 year"
-	ExpiresByType image/png "access plus 1 year"
-	ExpiresByType image/svg+xml "access plus 1 year"
-	ExpiresByType image/x-icon "access plus 1 year"
-	ExpiresByType font/woff2 "access plus 1 year"
-	ExpiresByType audio/mpeg "access plus 1 year"
-	ExpiresByType audio/wav "access plus 1 year"
-</IfModule>
+#<IfModule mod_expires.c>
+#	ExpiresActive On
+#	ExpiresByType text/html "access plus 0 seconds"
+#	ExpiresByType application/manifest+json "access plus 1 day"
+#	ExpiresByType text/css "access plus 1 day"
+#	ExpiresByType application/javascript "access plus 1 day"
+#	ExpiresByType image/jpeg "access plus 1 year"
+#	ExpiresByType image/png "access plus 1 year"
+#	ExpiresByType image/svg+xml "access plus 1 year"
+#	ExpiresByType image/x-icon "access plus 1 year"
+#	ExpiresByType font/woff2 "access plus 1 year"
+#	ExpiresByType audio/mpeg "access plus 1 year"
+#	ExpiresByType audio/wav "access plus 1 year"
+#</IfModule>

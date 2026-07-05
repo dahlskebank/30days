@@ -23,7 +23,7 @@ import {
 import { blip, setEnabled as setSoundEnabled } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.1.1";
+const APP_VERSION = "v1.1.3";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -1266,6 +1266,18 @@ function init(){
 	if ("serviceWorker" in navigator &&
 		(location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname))){
 		navigator.serviceWorker.register("/sw.js").catch(() => { /* offline-first is progressive */ });
+		/* after a deploy the new worker installs in the background while the
+		   old cache serves this page — without this, the new version only
+		   shows on the SECOND visit. When the fresh worker takes control,
+		   reload once. hadController guards the very first install (no old
+		   version on screen → nothing to swap). */
+		const hadController = !!navigator.serviceWorker.controller;
+		let swReloaded = false;
+		navigator.serviceWorker.addEventListener("controllerchange", () => {
+			if (!hadController || swReloaded) return;
+			swReloaded = true;
+			location.reload();
+		});
 	}
 }
 

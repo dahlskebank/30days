@@ -12,6 +12,9 @@
 _temp/
 _md/TESTING.md
 
+# --- Deploy secrets (deploy.sh reads this; .env.example is the committed template) ---
+.env
+
 # --- Node (only ever used for one-off asset tooling, never runtime) ---
 node_modules/
 
