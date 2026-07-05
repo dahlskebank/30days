@@ -1,5 +1,5 @@
 # ============================================================
-#  .htaccess for 30 Days of Dahl — https://kiande.com
+#  .htaccess for 30 Days of Dahl — https://30days.dfault.it
 #  Tier 1 static one-pager: CSP intentionally skipped, HSTS
 #  ships commented out (enable after HTTPS is verified green
 #  on production for a while).

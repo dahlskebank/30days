@@ -90,6 +90,7 @@ export function defaultState(){
 		sound: true,
 		fx: true,
 		marksRight: false,
+		compact: false,
 		soundMode: "interrupt",
 		brandName: "Protocol",
 		groups: stdGroups(),

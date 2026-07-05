@@ -1,9 +1,9 @@
-# Sound inventory — Protocol (kiande.com)
+# Sound inventory — Protocol (30days.dfault.it)
 
-Files live in `_site/sounds/` and are wired in `_site/sound.js` (the `SFX`
+Files live in `_site/assets/sounds/` and are wired in `_site/sound.js` (the `SFX`
 map). **Naming convention: the filename prefix = the event it plays on**
 (`check_`, `uncheck_`, `allcore_`, …). Files starting with `_` are benched /
-unused. To add or swap a sound: drop it in `_site/sounds/` with the right
+unused. To add or swap a sound: drop it in `_site/assets/sounds/` with the right
 prefix, add the filename to the matching pool in `sound.js`, add it to the
 `SOUNDS` list in `sw.js`, bump `CACHE`.
 

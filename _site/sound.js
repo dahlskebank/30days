@@ -120,7 +120,7 @@ function playSample(pool, important) {
 	if (busy) current.pause(); /* one voice: interrupt whatever is talking */
 	const file = pool[(Math.random() * pool.length) | 0];
 	try {
-		const a = new Audio("/sounds/" + file);
+		const a = new Audio("/assets/sounds/" + file);
 		a.volume = SAMPLE_VOLUME;
 		current = a;
 		lastStart = now;

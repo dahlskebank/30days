@@ -47,6 +47,7 @@ function normalize(raw){
 		sound: raw.sound !== false,
 		fx: raw.fx !== false,
 		marksRight: raw.marksRight === true, /* checkmark on the right side of task rows */
+		compact: raw.compact === true, /* tighter Today screen: one-line gauge, slim task pills */
 		soundMode: raw.soundMode === "smart" ? "smart" : "interrupt", /* always-interrupt (A, default) vs smart burst (C) */
 		brandName: typeof raw.brandName === "string" && raw.brandName.trim() ? raw.brandName.trim().slice(0, 24) : "Protocol",
 		groups: raw.groups.map(g => ({

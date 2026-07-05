@@ -36,9 +36,11 @@ kiande.com/
     ├── fx.js                boot sequence, decode text, parallax
     ├── sw.js                service worker (cache-first app shell)
     ├── manifest.webmanifest PWA manifest (app name: Protocol)
-    ├── fonts/               self-hosted Rajdhani + Chakra Petch (woff2)
-    ├── icons/               PWA icons, apple-touch-icon (favicon.ico at root)
-    ├── sounds/              check-off soundboard mp3s (see SOUNDS.md)
+    ├── assets/fonts/        self-hosted Rajdhani + Chakra Petch (woff2)
+    ├── assets/icons/        PWA icons, apple-touch-icon (favicon.ico at root)
+    │                        (NOT /icons/ — that URL is shadowed by Apache's
+    │                        built-in autoindex icon alias on shared hosting)
+    ├── assets/sounds/       check-off soundboard mp3s (see SOUNDS.md)
     ├── assets/img/          og-image, QR code for the desktop landing
     ├── .htaccess            Apache hardening (Tier 1 static site)
     ├── 404.html / 403.html  error pages

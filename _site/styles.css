@@ -37,42 +37,42 @@
 	font-style: normal;
 	font-weight: 500;
 	font-display: swap;
-	src: url("/fonts/rajdhani-v17-latin-500.woff2") format("woff2");
+	src: url("/assets/fonts/rajdhani-v17-latin-500.woff2") format("woff2");
 }
 @font-face {
 	font-family: "Rajdhani";
 	font-style: normal;
 	font-weight: 600;
 	font-display: swap;
-	src: url("/fonts/rajdhani-v17-latin-600.woff2") format("woff2");
+	src: url("/assets/fonts/rajdhani-v17-latin-600.woff2") format("woff2");
 }
 @font-face {
 	font-family: "Rajdhani";
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url("/fonts/rajdhani-v17-latin-700.woff2") format("woff2");
+	src: url("/assets/fonts/rajdhani-v17-latin-700.woff2") format("woff2");
 }
 @font-face {
 	font-family: "Chakra Petch";
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url("/fonts/chakra-petch-v13-latin-regular.woff2") format("woff2");
+	src: url("/assets/fonts/chakra-petch-v13-latin-regular.woff2") format("woff2");
 }
 @font-face {
 	font-family: "Chakra Petch";
 	font-style: normal;
 	font-weight: 500;
 	font-display: swap;
-	src: url("/fonts/chakra-petch-v13-latin-500.woff2") format("woff2");
+	src: url("/assets/fonts/chakra-petch-v13-latin-500.woff2") format("woff2");
 }
 @font-face {
 	font-family: "Chakra Petch";
 	font-style: normal;
 	font-weight: 600;
 	font-display: swap;
-	src: url("/fonts/chakra-petch-v13-latin-600.woff2") format("woff2");
+	src: url("/assets/fonts/chakra-petch-v13-latin-600.woff2") format("woff2");
 }
 
 /* ---------- base ---------- */
@@ -897,6 +897,128 @@ body.marks-right .task {
 }
 body.marks-right .task .label {
 	text-align: left;
+}
+
+/* ============================================================
+   COMPACT MODE (System setting) — body.compact, CSS-only reflow
+   of the Today screen: the gauge collapses to one line, the
+   daymark hides (a running protocol keeps a slim DAY n/30 —
+   app.js tags free-run days with .freerun), task pills slim
+   down. Goal: more loadout on screen before scrolling.
+   ============================================================ */
+
+/* daymark: date always gone; the whole row gone on free runs */
+body.compact .daymark {
+	margin: 0 2px 8px;
+}
+body.compact .daymark.freerun,
+body.compact .daymark .date {
+	display: none;
+}
+body.compact .daymark .big {
+	font-size: 13px;
+}
+
+/* gauge → single flex line: count · charge bar · cells/triangle.
+   display:contents dissolves .gauge-top so .count joins the line
+   while .readout (CHARGE % / state word) is dropped — the molten
+   bar and the count already say both. */
+body.compact .gauge {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 9px 12px;
+	margin-bottom: 8px;
+}
+body.compact .gauge::before {
+	width: 14px;
+	height: 14px;
+}
+body.compact .gauge-top {
+	display: contents;
+}
+body.compact .readout {
+	display: none;
+}
+body.compact .count {
+	font-size: 22px;
+	line-height: 1;
+}
+body.compact .count i {
+	font-size: 13px;
+}
+body.compact .crucible {
+	flex: 1 1 auto;
+	height: 12px;
+}
+body.compact .cells {
+	flex: none;
+	margin-top: 0;
+	min-height: 0;
+	gap: 5px;
+}
+body.compact .cell-hex {
+	width: 15px;
+	height: 17px;
+}
+body.compact .passive-ind {
+	margin-left: 3px;
+}
+body.compact .ptri {
+	width: 16px;
+	height: 14px;
+}
+body.compact .ptri::after {
+	left: 2px;
+	right: 2px;
+	top: 3px;
+	bottom: 1.5px;
+}
+
+/* task pills: slimmer padding + a smaller triangle. Deliberately
+   dips under --tap (46px) to ~34px rows — compact trades tap
+   comfort for overview, that IS the setting. */
+body.compact .task {
+	min-height: 34px;
+	padding: 5px 13px 5px 11px;
+	gap: 10px;
+	margin-bottom: 5px;
+	clip-path: polygon(
+		10px 0,
+		100% 0,
+		100% calc(100% - 7px),
+		calc(100% - 7px) 100%,
+		0 100%,
+		0 9px
+	);
+}
+body.compact .task::before {
+	width: 7px;
+}
+body.compact .task .mark {
+	width: 18px;
+	height: 16px;
+}
+body.compact .task .mark::after {
+	left: 2px;
+	right: 2px;
+	top: 3.5px;
+	bottom: 2px;
+}
+body.compact .task .mark .mhex {
+	left: 6.5px;
+	bottom: 3px;
+	width: 5px;
+	height: 5px;
+}
+body.compact .task .label {
+	font-size: 13.5px;
+}
+body.compact .group {
+	margin-bottom: 12px;
+}
+body.compact .group-head {
+	padding-bottom: 6px;
 }
 
 /* ============================================================

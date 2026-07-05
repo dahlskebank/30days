@@ -43,7 +43,7 @@ import {
 } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.2.3";
+const APP_VERSION = "v1.2.6";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -77,7 +77,11 @@ function todayKey() {
 function fmtDDMMYY(d) {
 	const p2 = (n) => String(n).padStart(2, "0");
 	return (
-		p2(d.getDate()) + "-" + p2(d.getMonth() + 1) + "-" + String(d.getFullYear()).slice(-2)
+		p2(d.getDate()) +
+		"-" +
+		p2(d.getMonth() + 1) +
+		"-" +
+		String(d.getFullYear()).slice(-2)
 	);
 }
 function fmtShort(d) {
@@ -97,6 +101,7 @@ function applySettings() {
 	setSoundMode(state.soundMode);
 	fx.setEnabled(state.fx && !fx.prefersReduced());
 	document.body.classList.toggle("marks-right", !!state.marksRight);
+	document.body.classList.toggle("compact", !!state.compact);
 	/* App rename DISABLED (owner: "Protocol sounds cool") — the setting row
 	   is hidden and the header is pinned to Protocol regardless of any
 	   brandName still stored from the brief brandable era. Flip the hidden
@@ -344,6 +349,10 @@ function renderToday() {
 	/* --- day mark: protocol context or FREE RUN --- */
 	const prot = currentProtocol(state);
 	const mark = $("todayMark");
+	/* compact mode hides the FREE RUN daymark entirely, but a running
+	   protocol keeps a slim DAY n/30 line — that count lives nowhere
+	   else on this screen. CSS keys off .freerun (styles: body.compact) */
+	mark.closest(".daymark").classList.toggle("freerun", !prot);
 	if (!prot) {
 		mark.innerHTML = `FREE <em>RUN</em>`;
 	} else {
@@ -1181,6 +1190,12 @@ function renderSystem() {
 			<button class="switch" id="marksSwitch" role="switch" aria-checked="${!!state.marksRight}" aria-label="Checkmarks on right"></button>
 		</div>
 
+		<div class="menu-row menu-row-tap" id="sysCompactRow">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3l4 4 4-4M8 21l4-4 4 4M4 12h16"/></svg>
+			<div class="mt"><b>Compact mode</b><small>one-line gauge, slim tasks — more on screen</small></div>
+			<button class="switch" id="compactSwitch" role="switch" aria-checked="${!!state.compact}" aria-label="Compact mode"></button>
+		</div>
+
 		<!-- App-name row HIDDEN (rename disabled — remove the hidden attr and
 		     re-enable the brandName lines in applySettings + the change
 		     listener below to bring it back) -->
@@ -1229,7 +1244,7 @@ function renderSystem() {
 		</button>
 
 		<div class="sysfoot">Protocol · <b>${APP_VERSION}</b><br>
-		No Excuses / Just Results</div>`;
+		No Excuses ≠ Just Results</div>`;
 
 	/* --- rollover: re-renders but never rewrites the log (SPEC §3.3) --- */
 	$("rollInput").addEventListener("change", (e) => {
@@ -1279,6 +1294,15 @@ function renderSystem() {
 		blip("ui");
 	});
 
+	/* --- compact mode: pure CSS reflow via body.compact --- */
+	$("compactSwitch").addEventListener("click", (e) => {
+		state.compact = !state.compact;
+		document.body.classList.toggle("compact", state.compact);
+		e.currentTarget.setAttribute("aria-checked", state.compact);
+		persist();
+		blip("ui");
+	});
+
 	/* --- sound mode: C (smart burst, default) vs A (always interrupt) --- */
 	$("burstSwitch").addEventListener("click", (e) => {
 		state.soundMode = state.soundMode === "interrupt" ? "smart" : "interrupt";
@@ -1303,6 +1327,9 @@ function renderSystem() {
 	});
 	$("sysMarksRow").addEventListener("click", (e) => {
 		if (!e.target.closest(".switch")) $("marksSwitch").click();
+	});
+	$("sysCompactRow").addEventListener("click", (e) => {
+		if (!e.target.closest(".switch")) $("compactSwitch").click();
 	});
 
 	/* --- app name (header brand) — row is hidden, wiring stays for re-enable --- */
@@ -1618,7 +1645,7 @@ function init() {
 	/* service worker — cache-first app shell, offline after first load (SPEC §11).
 	   localhost counts as a secure context, so local testing gets the SW too. */
 	// VERIFY: offline — airplane mode after first load, app fully works, fonts render
-	// VERIFY: install to Android home screen from kiande.com over HTTPS; standalone, no browser chrome
+	// VERIFY: install to Android home screen from 30days.dfault.it over HTTPS; standalone, no browser chrome
 	if (
 		"serviceWorker" in navigator &&
 		(location.protocol === "https:" ||

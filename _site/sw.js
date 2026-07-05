@@ -7,7 +7,7 @@
    cross-origin requests like Google Analytics pass straight through).
    ============================================================ */
 
-const CACHE = "30dod-v1.2.3";
+const CACHE = "30dod-v1.2.6";
 
 /* NOTE: "/" (not "/index.html") — the .htaccess clean-URL rule 301s
    /index.html to /, and a cached redirected response is rejected by
@@ -21,50 +21,50 @@ const SHELL = [
 	"/sound.js",
 	"/fx.js",
 	"/manifest.webmanifest",
-	"/fonts/rajdhani-v17-latin-500.woff2",
-	"/fonts/rajdhani-v17-latin-600.woff2",
-	"/fonts/rajdhani-v17-latin-700.woff2",
-	"/fonts/chakra-petch-v13-latin-regular.woff2",
-	"/fonts/chakra-petch-v13-latin-500.woff2",
-	"/fonts/chakra-petch-v13-latin-600.woff2",
-	"/icons/icon.svg",
-	"/icons/icon-192.png",
-	"/icons/icon-512.png",
-	"/icons/icon-maskable-192.png",
-	"/icons/icon-maskable-512.png",
-	"/icons/apple-touch-icon.png",
+	"/assets/fonts/rajdhani-v17-latin-500.woff2",
+	"/assets/fonts/rajdhani-v17-latin-600.woff2",
+	"/assets/fonts/rajdhani-v17-latin-700.woff2",
+	"/assets/fonts/chakra-petch-v13-latin-regular.woff2",
+	"/assets/fonts/chakra-petch-v13-latin-500.woff2",
+	"/assets/fonts/chakra-petch-v13-latin-600.woff2",
+	"/assets/icons/icon.svg",
+	"/assets/icons/icon-192.png",
+	"/assets/icons/icon-512.png",
+	"/assets/icons/icon-maskable-192.png",
+	"/assets/icons/icon-maskable-512.png",
+	"/assets/icons/apple-touch-icon.png",
 	"/favicon.ico",
-	"/assets/img/qr-kiande.svg",
+	"/assets/img/qr-30days.svg",
 ];
 
 /* Soundboard (~700 KB) is cached best-effort in a second pass: a single
    dropped audio fetch on flaky mobile must not fail the atomic core-shell
    install and leave the app with no offline capability at all. */
 const SOUNDS = [
-	"/sounds/check_dude_hehhehheh.mp3",
-	"/sounds/check_dude_idefinitelyneed.mp3",
-	"/sounds/check_dude_ididntexpectthat.mp3",
-	"/sounds/check_dude_igottafindmore.mp3",
-	"/sounds/check_dude_map_found3.mp3",
-	"/sounds/check_dude_thatmustbetheone.mp3",
-	"/sounds/check_dude_yess.mp3",
-	"/sounds/uncheck_dk_FX108_chicken.mp3",
-	"/sounds/uncheck_dk_FX109_chicken.mp3",
-	"/sounds/uncheck_dk_FX194_bwaff.mp3",
-	"/sounds/uncheck_dk_FX242_femscream.mp3",
-	"/sounds/uncheck_dk_FX243_femscream.mp3",
-	"/sounds/uncheck_dk_FX244_femscream.mp3",
-	"/sounds/uncheck_dk_FX250_femscream.mp3",
-	"/sounds/uncheck_dude_thatcantbegood.wav",
-	"/sounds/uncheck_dude_thatsclearly.mp3",
-	"/sounds/section_dude_aahthatsthestuff.mp3",
-	"/sounds/allcore_serious-sam-extra-life.mp3",
-	"/sounds/allbonus_dude_ifeelbetter.mp3",
-	"/sounds/allpassive_dude_nowtheflowers.mp3",
-	"/sounds/alldone_mortal-kombat-2-flawless-victory.mp3",
-	"/sounds/initiate_dk_FX93_pants.mp3",
-	"/sounds/sound_toggle_FX154.mp3",
-	"/sounds/wipe_oh-good-bale.mp3",
+	"/assets/sounds/check_dude_hehhehheh.mp3",
+	"/assets/sounds/check_dude_idefinitelyneed.mp3",
+	"/assets/sounds/check_dude_ididntexpectthat.mp3",
+	"/assets/sounds/check_dude_igottafindmore.mp3",
+	"/assets/sounds/check_dude_map_found3.mp3",
+	"/assets/sounds/check_dude_thatmustbetheone.mp3",
+	"/assets/sounds/check_dude_yess.mp3",
+	"/assets/sounds/uncheck_dk_FX108_chicken.mp3",
+	"/assets/sounds/uncheck_dk_FX109_chicken.mp3",
+	"/assets/sounds/uncheck_dk_FX194_bwaff.mp3",
+	"/assets/sounds/uncheck_dk_FX242_femscream.mp3",
+	"/assets/sounds/uncheck_dk_FX243_femscream.mp3",
+	"/assets/sounds/uncheck_dk_FX244_femscream.mp3",
+	"/assets/sounds/uncheck_dk_FX250_femscream.mp3",
+	"/assets/sounds/uncheck_dude_thatcantbegood.wav",
+	"/assets/sounds/uncheck_dude_thatsclearly.mp3",
+	"/assets/sounds/section_dude_aahthatsthestuff.mp3",
+	"/assets/sounds/allcore_serious-sam-extra-life.mp3",
+	"/assets/sounds/allbonus_dude_ifeelbetter.mp3",
+	"/assets/sounds/allpassive_dude_nowtheflowers.mp3",
+	"/assets/sounds/alldone_mortal-kombat-2-flawless-victory.mp3",
+	"/assets/sounds/initiate_dk_FX93_pants.mp3",
+	"/assets/sounds/sound_toggle_FX154.mp3",
+	"/assets/sounds/wipe_oh-good-bale.mp3",
 ];
 
 self.addEventListener("install", (event) => {
