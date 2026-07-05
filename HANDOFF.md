@@ -97,14 +97,35 @@ Std tasks carry fixed `std_*` ids so "Restore standard" can merge.
 2. **Production TLS**: kiande.com serves the dxd.no certificate (no LE
    cert issued yet) → SW/install blocked on prod until fixed in the
    Domeneshop panel (SSL for kiande.com).
-3. **Sound stacking** (rapid taps overlap samples): brainstormed, not yet
-   implemented — owner wants to choose the approach.
+3. **Sound modes shipped for A/B testing** (v1.1.6): single voice channel,
+   System → "Smart burst" toggle. ON = mode C (new sample interrupts, but
+   taps within 600ms of a started quote fall back to synth blips; milestone
+   sounds always interrupt). OFF = mode A (every tap interrupts with a new
+   quote). Owner is testing which to keep — see `mode`/`BURST_MS` in sound.js.
 4. GA4: `window.GA_ID` in index.html is empty; paste id to enable.
 5. Empty sound slots: allpassive, allbonus, fail, initiate (SOUNDS.md).
 6. "Reset protocol" testing row: disable before real go-live.
 7. OG image (`assets/img/og-image.jpg`) regenerated with "OF DISCIPLINE";
    source template lives in the session scratchpad only — regenerate by
    screenshotting a 1200×630 HTML page with the site's fonts/tokens.
+8. **Design decisions pending (owner is choosing, do NOT implement yet):**
+   - Tier marking on task rows: BONUS/PASSIVE text tags feel noisy, CORE is
+     unmarked. Brainstormed direction: encode tier in the triangle itself
+     (core = gold outline as now; bonus = triangle + micro-hex at its corner,
+     hex = overcharge per the symbol grammar; passive = faint/grey outline)
+     and drop the text tags. Owner hasn't picked yet.
+   - Top-bar real estate: options discussed were (a) keep slim fixed topbar,
+     (b) auto-hide on scroll-down / reappear on scroll-up (Material "hide on
+     scroll" — app-legit), (c) move gear to bottom bar (rejected-ish: mixes
+     places with actions). Leaning (b). Not implemented.
+   - Rule-notch meaning: currently month progress; alternative discussed is
+     protocol progress while a run is ACTIVE, month otherwise. Unchanged.
+   - `_site/sounds/DK/FX64.mp3`: file dropped by owner, not wired to any
+     event yet — ask what it's for.
+9. **Production deploy still pending** (owner runs it): `DRY_RUN=1
+   ./deploy.sh _site` then `./deploy.sh _site` — fixes missing /icons/,
+   old .htaccess, per-browser version skew; then clear site data once per
+   affected browser. Domeneshop LE cert for kiande.com still needed.
 
 ## Conventions
 

@@ -36,10 +36,10 @@ import {
 	restoreStandard,
 	tierTasks,
 } from "./model.js";
-import { blip, setEnabled as setSoundEnabled } from "./sound.js";
+import { blip, setEnabled as setSoundEnabled, setMode as setSoundMode } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.1.5";
+const APP_VERSION = "v1.1.4";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -83,11 +83,13 @@ function persist() {
 
 function applySettings() {
 	setSoundEnabled(state.sound);
+	setSoundMode(state.soundMode);
 	fx.setEnabled(state.fx && !fx.prefersReduced());
 	document.body.classList.toggle("marks-right", !!state.marksRight);
 	/* user-brandable header (System → App name); the installed home-screen
 	   label stays "Protocol" — a manifest can't be personalized per user */
-	document.querySelector(".brand b").textContent = state.brandName || "Protocol";
+	document.querySelector(".brand b").textContent =
+		state.brandName || "Protocol";
 }
 
 /* ---------- toast ---------- */
@@ -319,7 +321,11 @@ function renderToday() {
 	/* the header hairline's triangular notch tracks the month's progress —
 	   not just decoration: it creeps right as the month burns down */
 	const eff = effectiveToday(state.rolloverHour);
-	const daysInMonth = new Date(eff.getFullYear(), eff.getMonth() + 1, 0).getDate();
+	const daysInMonth = new Date(
+		eff.getFullYear(),
+		eff.getMonth() + 1,
+		0,
+	).getDate();
 	const monthPct = Math.round((eff.getDate() / daysInMonth) * 100);
 	document.querySelector(".rule").style.setProperty("--rp", monthPct + "%");
 
@@ -355,13 +361,11 @@ function renderToday() {
 	const cells = $("gCells");
 	cells.innerHTML = "";
 	cells.classList.toggle("overclocked", s.ratio >= 1 && s.bonusDone > 0);
+	/* icons only — the hex cells and the triangle speak for themselves
+	   (owner feedback: the OVERCHARGE / PASSIVE cap labels were noise) */
 	const done = new Set(state.log[key] || []);
 	const bonus = tierTasks(state.groups, "bonus");
 	if (bonus.length) {
-		const cap = document.createElement("span");
-		cap.className = "cap";
-		cap.textContent = "Overcharge";
-		cells.appendChild(cap);
 		bonus.forEach((t) => {
 			const c = document.createElement("span");
 			c.className = "cell-hex" + (done.has(t.id) ? " lit" : "");
@@ -372,7 +376,7 @@ function renderToday() {
 	if (s.passiveTotal > 0) {
 		const wrap = document.createElement("span");
 		wrap.className = "passive-ind";
-		wrap.innerHTML = `<span class="cap">Passive</span><span class="ptri${s.allPassive ? " on" : ""}" id="ptri" title="All passive rules online"></span>`;
+		wrap.innerHTML = `<span class="ptri${s.allPassive ? " on" : ""}" id="ptri" title="All passive rules online"></span>`;
 		cells.appendChild(wrap);
 	}
 
@@ -551,9 +555,9 @@ function renderProt({ entering = false } = {}) {
 	/* --- honeycomb billet: 30 hexes, rows 6-5-6-5-6-2, offset --- */
 	const hive = document.createElement("div");
 	hive.className = "hive";
-	/* 5 clean rows of 6 (even rows offset half a hex = honeycomb) — the old
-	   6-5-6-5-6-2 left days 29+30 orphaned on their own row */
-	const rows = [6, 6, 6, 6, 6];
+	/* 6 rows of 5 (even rows offset half a hex = honeycomb): portrait
+	   phones have the vertical budget, and 5-wide buys bigger tap targets */
+	const rows = [5, 5, 5, 5, 5, 5];
 	let idx = 0;
 	rows.forEach((count) => {
 		const row = document.createElement("div");
@@ -1104,6 +1108,12 @@ function renderSystem() {
 			<button class="switch" id="soundSwitch" role="switch" aria-checked="${state.sound}" aria-label="Sounds"></button>
 		</div>
 
+		<div class="menu-row menu-row-tap" id="sysBurstRow">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2-7 4 14 2-7h4"/></svg>
+			<div class="mt"><b>Smart burst</b><small>rapid taps blip instead of stacking quotes</small></div>
+			<button class="switch" id="burstSwitch" role="switch" aria-checked="${state.soundMode !== "interrupt"}" aria-label="Smart burst"></button>
+		</div>
+
 		<div class="menu-row menu-row-tap" id="sysFxRow">
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
 			<div class="mt"><b>Reduce FX</b><small>${reduced ? "forced on by system reduced-motion" : "disable animations &amp; parallax"}</small></div>
@@ -1157,7 +1167,7 @@ function renderSystem() {
 			<div class="mt"><b>Wipe all data</b><small>erase log &amp; protocols — keeps the loadout</small></div>
 		</button>
 
-		<div class="sysfoot">Protocol · <b>${APP_VERSION}</b> · no cookies, no cloud, no excuses</div>`;
+		<div class="sysfoot">Protocol · <b>${APP_VERSION}</b> · no excuses / just results</div>`;
 
 	/* --- rollover: re-renders but never rewrites the log (SPEC §3.3) --- */
 	$("rollInput").addEventListener("change", (e) => {
@@ -1198,9 +1208,21 @@ function renderSystem() {
 		blip("ui");
 	});
 
+	/* --- sound mode: C (smart burst, default) vs A (always interrupt) --- */
+	$("burstSwitch").addEventListener("click", (e) => {
+		state.soundMode = state.soundMode === "interrupt" ? "smart" : "interrupt";
+		setSoundMode(state.soundMode);
+		e.currentTarget.setAttribute("aria-checked", state.soundMode !== "interrupt");
+		persist();
+		blip("ui");
+	});
+
 	/* the 52×28 switches are small — let the whole row toggle them */
 	$("sysSoundRow").addEventListener("click", (e) => {
 		if (!e.target.closest(".switch")) $("soundSwitch").click();
+	});
+	$("sysBurstRow").addEventListener("click", (e) => {
+		if (!e.target.closest(".switch")) $("burstSwitch").click();
 	});
 	$("sysFxRow").addEventListener("click", (e) => {
 		if (!e.target.closest(".switch")) $("fxSwitch").click();
