@@ -64,16 +64,47 @@ const SFX = {
 		],
 		fallback: "uncheck",
 	},
-	alldone: { pool: [], fallback: "fanfare", important: true }, /* EVERY task in every tier — drop an alldone_* file in /sounds */
-	section: { pool: ["section_dude_aahthatsthestuff.mp3"], fallback: "check", important: true },
-	allcore: { pool: ["allcore_serious-sam-extra-life.mp3"], fallback: "full", important: true },
-	allbonus: { pool: ["allbonus_dude_ifeelbetter.mp3"], fallback: null, important: true },
-	allpassive: { pool: ["allpassive_check_dude_nowtheflowers.mp3"], fallback: null, important: true },
-	initiate: { pool: ["initiate_dk_FX93_pants.mp3"], fallback: "full", important: true },
-	soundtoggle: { pool: ["sound_toggle_FX154.mp3"], fallback: "check", important: true },
+	alldone: {
+		pool: ["alldone_mortal-kombat-2-flawless-victory.mp3"],
+		fallback: "fanfare",
+		important: true,
+	} /* the perfect day — every task in every tier */,
+	section: {
+		pool: ["section_dude_aahthatsthestuff.mp3"],
+		fallback: "check",
+		important: true,
+	},
+	allcore: {
+		pool: ["allcore_serious-sam-extra-life.mp3"],
+		fallback: "full",
+		important: true,
+	},
+	allbonus: {
+		pool: ["allbonus_dude_ifeelbetter.mp3"],
+		fallback: null,
+		important: true,
+	},
+	allpassive: {
+		pool: ["allpassive_dude_nowtheflowers.mp3"],
+		fallback: null,
+		important: true,
+	},
+	initiate: {
+		pool: ["initiate_dk_FX93_pants.mp3"],
+		fallback: "full",
+		important: true,
+	},
+	soundtoggle: {
+		pool: ["sound_toggle_FX154.mp3"],
+		fallback: "check",
+		important: true,
+	},
 	wipe: { pool: ["wipe_oh-good-bale.mp3"], fallback: null, important: true },
-	fail: { pool: [], fallback: null }, /* protocol failed — no file yet */
-	delete: { pool: [], fallback: "delete" }, /* removing a task/group — synth zap */
+	fail: { pool: [], fallback: null } /* protocol failed — no file yet */,
+	delete: {
+		pool: [],
+		fallback: "delete",
+	} /* removing a task/group — synth zap */,
 	nav: { pool: [], fallback: "nav" },
 	ui: { pool: [], fallback: "ui" },
 };
@@ -170,7 +201,13 @@ function synth(kind) {
 			tone(c, 784, t + 0.18, 0.09, 0.11);
 			tone(c, 1047, t + 0.27, 0.1, 0.11);
 			tone(c, 1568, t + 0.38, 0.34, 0.12);
-			tone(c, 784, t + 0.38, 0.34, 0.06); /* octave under the top note — fuller finish */
+			tone(
+				c,
+				784,
+				t + 0.38,
+				0.34,
+				0.06,
+			); /* octave under the top note — fuller finish */
 			break;
 		case "delete":
 			/* falling zap + a low thud at the bottom — something got shredded */

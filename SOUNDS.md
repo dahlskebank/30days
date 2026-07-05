@@ -14,27 +14,25 @@ Sample volume: `SAMPLE_VOLUME` in sound.js (0.7).
 
 ## Wired events
 
-| Event | Trigger | Pool |
-|---|---|---|
-| `check` | checking any task (core/bonus/passive alike) | 7 × `check_dude_*` |
-| `uncheck` | unchecking a task | 9 × `uncheck_*` (chickens, bwaff, screams, Dude) |
-| `section` | every task in a group done | `section_dude_aahthatsthestuff` |
-| `allcore` | 100% core — AUGMENTED | `allcore_serious-sam-extra-life` |
-| `allbonus` | every bonus task checked — OVERCLOCKED | `allbonus_dude_ifeelbetter` |
-| `allpassive` | last passive rule checked | `allpassive_check_dude_nowtheflowers` |
-| `initiate` | protocol initiated / start over | `initiate_dk_FX93_pants` |
-| `soundtoggle` | Sounds switch flipped (both directions) | `sound_toggle_FX154` |
-| `wipe` | wipe all data · reset protocol (testing) | `wipe_oh-good-bale` |
-| `delete` | deleting a task or group in Loadout | synth "falling zap + thud" |
-| `nav` / `ui` | tab switch / generic buttons | synth ticks (kept per owner) |
+| Event         | Trigger                                      | Pool                                             |
+| ------------- | -------------------------------------------- | ------------------------------------------------ |
+| `check`       | checking any task (core/bonus/passive alike) | 7 × `check_dude_*`                               |
+| `uncheck`     | unchecking a task                            | 9 × `uncheck_*` (chickens, bwaff, screams, Dude) |
+| `section`     | every task in a group done                   | `section_dude_aahthatsthestuff`                  |
+| `allcore`     | 100% core — AUGMENTED                        | `allcore_serious-sam-extra-life`                 |
+| `allbonus`    | every bonus task checked — OVERCLOCKED       | `allbonus_dude_ifeelbetter`                      |
+| `allpassive`  | last passive rule checked                    | `allpassive_dude_nowtheflowers`                  |
+| `initiate`    | protocol initiated / start over              | `initiate_dk_FX93_pants`                         |
+| `soundtoggle` | Sounds switch flipped (both directions)      | `sound_toggle_FX154`                             |
+| `wipe`        | wipe all data · reset protocol (testing)     | `wipe_oh-good-bale`                              |
+| `delete`      | deleting a task or group in Loadout          | synth "falling zap + thud"                       |
+| `nav` / `ui`  | tab switch / generic buttons                 | synth ticks (kept per owner)                     |
 
 Priority per tap: **all-done → all-core → section → all-passive → all-bonus → check.**
 
-## Waiting for a file
-
-| Event | Trigger | Current behavior |
-|---|---|---|
-| `alldone` | EVERY task in every tier checked — the perfect day | synth rising fanfare placeholder. Drop an `alldone_*` file (owner shortlist: MK "Flawless Victory", WC "Job's done!", FF victory fanfare, Duke "Hail to the king", DX:HR objective stinger) |
+Also wired: `alldone` (EVERY task in every tier — the perfect day) →
+`alldone_mortal-kombat-2-flawless-victory.mp3`, and the Reduce FX switch
+plays the `ui` tick (sounds and FX are independent switches).
 
 ## Benched (unused, kept in the folder)
 
@@ -45,6 +43,6 @@ Priority per tap: **all-done → all-core → section → all-passive → all-bo
 
 ## Empty slots
 
-| Event | Trigger | Current behavior |
-|---|---|---|
+| Event  | Trigger                         | Current behavior                                                                                  |
+| ------ | ------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `fail` | protocol status flips to FAILED | not wired — needs a file AND a trigger decision (when the failing day commits? on next app open?) |

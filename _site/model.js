@@ -62,6 +62,7 @@ export function stdGroups(){
 		]},
 		{ id: "std_g_routine", name: "Routine", tasks: [
 			{ id: "std_wake",     label: "Wake-up 05:00",                tier: "core" },
+			{ id: "std_bed",      label: "Make your bed",                tier: "bonus" },
 			{ id: "std_cold",     label: "Cold shower",                  tier: "bonus" },
 			{ id: "std_meals",    label: "3 meals max",                  tier: "passive" },
 			{ id: "std_nosnack",  label: "No snacking",                  tier: "passive" },
@@ -74,6 +75,7 @@ export function stdGroups(){
 		{ id: "std_g_work", name: "Work", tasks: [
 			{ id: "std_notebook", label: "Notebook & pen on you",        tier: "passive" },
 			{ id: "std_todo",     label: "Complete today's to-do list",  tier: "passive" },
+			{ id: "std_tomorrow", label: "Write tomorrow's to-do list",  tier: "passive" },
 		]},
 	];
 }

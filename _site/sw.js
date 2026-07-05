@@ -7,7 +7,7 @@
    cross-origin requests like Google Analytics pass straight through).
    ============================================================ */
 
-const CACHE = "30dod-v1.2.2";
+const CACHE = "30dod-v1.2.3";
 
 /* NOTE: "/" (not "/index.html") — the .htaccess clean-URL rule 301s
    /index.html to /, and a cached redirected response is rejected by
@@ -60,7 +60,8 @@ const SOUNDS = [
 	"/sounds/section_dude_aahthatsthestuff.mp3",
 	"/sounds/allcore_serious-sam-extra-life.mp3",
 	"/sounds/allbonus_dude_ifeelbetter.mp3",
-	"/sounds/allpassive_check_dude_nowtheflowers.mp3",
+	"/sounds/allpassive_dude_nowtheflowers.mp3",
+	"/sounds/alldone_mortal-kombat-2-flawless-victory.mp3",
 	"/sounds/initiate_dk_FX93_pants.mp3",
 	"/sounds/sound_toggle_FX154.mp3",
 	"/sounds/wipe_oh-good-bale.mp3",

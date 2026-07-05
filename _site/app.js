@@ -43,7 +43,7 @@ import {
 } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.2.2";
+const APP_VERSION = "v1.2.3";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -1267,6 +1267,7 @@ function renderSystem() {
 		fx.setEnabled(state.fx);
 		e.currentTarget.setAttribute("aria-checked", !state.fx);
 		persist();
+		blip("ui"); /* sounds and FX are independent switches — tick regardless */
 	});
 
 	/* --- checkmark side --- */
