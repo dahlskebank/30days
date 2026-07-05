@@ -314,25 +314,16 @@ html {
 	display: flex;
 	flex-direction: column;
 	overflow: clip; /* not `hidden`: hidden creates a scroll container that focus() can shift sideways */
-	/* header overlay height — screens pad down by this so content starts
-	   below the (visible) header but can scroll underneath it */
-	--headh: calc(env(safe-area-inset-top) + 76px);
 }
 
-/* overlay header: hides on scroll-down, returns on scroll-up (Material
-   "app bar hide on scroll") — absolute so hiding costs no layout shift */
+/* Header is a normal pinned flex row again. The hide-on-scroll overlay
+   experiment (v1.1.7) needed a solid backdrop that blanked the shaft /
+   lattice layers behind the topbar — owner verdict: "style over
+   substance", real estate lost on purpose. initHeadHide() in app.js is
+   disabled but kept for a possible retry with a transparent technique. */
 .apphead {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	z-index: 4;
+	flex: none;
 	padding-top: env(safe-area-inset-top);
-	background: linear-gradient(180deg, var(--void) 0%, var(--void) 88%, transparent);
-	transition: transform 0.26s var(--ease);
-}
-.apphead.hidden {
-	transform: translateY(-103%);
 }
 
 /* ---------- swipe track: the three tab screens side by side ---------- */
@@ -429,8 +420,7 @@ html {
 	min-height: 0;
 	overflow-y: auto;
 	overscroll-behavior: contain;
-	/* top padding clears the overlay header (see --headh on .app) */
-	padding: calc(var(--headh) + 12px) 18px 28px;
+	padding: 14px 18px 28px;
 }
 
 .eyebrow {
@@ -852,10 +842,11 @@ html {
    cells". Lights up with the check. */
 .task .mark .mhex {
 	position: absolute;
-	right: -4px;
-	bottom: -3px;
-	width: 10px;
-	height: 11px;
+	left: 10px;
+	bottom: 5px;
+	width: 6px;
+	height: 6px;
+
 	z-index: 2;
 	clip-path: polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%);
 	background: var(--gold-lo);
@@ -863,6 +854,7 @@ html {
 }
 .task[data-done="true"] .mark .mhex {
 	background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+	display: none;
 }
 
 .task .label {
@@ -2016,6 +2008,11 @@ body.marks-right .task .label {
 	left: 50%;
 	bottom: 100px;
 	transform: translate(-50%, 20px);
+	/* width:max-content beats the shrink-to-fit of left:50% positioning,
+	   which capped the box at ~half the viewport and wrapped short lines */
+	width: max-content;
+	max-width: min(88vw, 440px);
+	text-align: center;
 	background: var(--carbon);
 	border: 1px solid var(--gold-lo);
 	color: var(--fg);
@@ -2034,7 +2031,6 @@ body.marks-right .task .label {
 	transition:
 		opacity 0.25s,
 		transform 0.25s;
-	max-width: 88%;
 }
 .toast.show {
 	opacity: 1;

@@ -112,8 +112,16 @@ Std tasks carry fixed `std_*` ids so "Restore standard" can merge.
    - Tier marks: text tags REMOVED; tier lives in the triangle (core = gold
      outline, bonus = micro-hex docked at the corner via `.mhex`, passive =
      grey outline until checked). Owner is evaluating ("test suggestion B").
-   - Header: `.apphead` overlay hides on scroll-down, reveals on scroll-up
-     (initHeadHide in app.js; screens pad down by `--headh`).
+   - Header hide-on-scroll: tried in v1.1.7, REVERTED in v1.1.8 — the solid
+     backdrop the overlay needed blanked the bg layers behind the topbar
+     ("style over substance"). initHeadHide() kept but disabled (ENABLED
+     flag); header is a normal pinned flex row again.
+   - App rename: DISABLED in v1.1.8 ("Protocol sounds cool") — System row
+     hidden, header pinned to "Protocol"; wiring kept for re-enable.
+   - Install-app System row: HIDDEN in v1.1.8 (kept wired for the future).
+   - Loadout sheet has a Done button at the bottom (closes, same as ✕).
+   - Toast: width:max-content fix — left:50% shrink-to-fit was wrapping
+     short messages at ~half viewport width.
    - Rule notch stays MONTH progress (owner confirmed).
    - Smart burst DEFAULTS OFF (soundMode default "interrupt"; stored
      values are respected, so previously-saved "smart" states keep it on

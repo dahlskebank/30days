@@ -36,10 +36,14 @@ import {
 	restoreStandard,
 	tierTasks,
 } from "./model.js";
-import { blip, setEnabled as setSoundEnabled, setMode as setSoundMode } from "./sound.js";
+import {
+	blip,
+	setEnabled as setSoundEnabled,
+	setMode as setSoundMode,
+} from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.1.7";
+const APP_VERSION = "v1.1.8";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -86,10 +90,11 @@ function applySettings() {
 	setSoundMode(state.soundMode);
 	fx.setEnabled(state.fx && !fx.prefersReduced());
 	document.body.classList.toggle("marks-right", !!state.marksRight);
-	/* user-brandable header (System → App name); the installed home-screen
-	   label stays "Protocol" — a manifest can't be personalized per user */
-	document.querySelector(".brand b").textContent =
-		state.brandName || "Protocol";
+	/* App rename DISABLED (owner: "Protocol sounds cool") — the setting row
+	   is hidden and the header is pinned to Protocol regardless of any
+	   brandName still stored from the brief brandable era. Flip the hidden
+	   attribute on the App-name row + use state.brandName here to re-enable. */
+	document.querySelector(".brand b").textContent = "Protocol";
 }
 
 /* ---------- toast ---------- */
@@ -183,15 +188,17 @@ function showTab(i, { silent = false } = {}) {
 		$("screen-" + t).inert = k !== i;
 	});
 	if (changed && !silent) blip("nav");
-	if (changed) $("apphead").classList.remove("hidden"); /* landing on a tab re-reveals the header */
 	/* billet cascade on entering 30 Days (SPEC §9) */
 	if (changed && TAB_IDS[i] === "prot") renderProt({ entering: true });
 }
 
-/* Header hide-on-scroll: scrolling down slides the overlay header away
-   (content space), any scroll-up brings it back without going to the top.
-   Each tab screen is its own scroll container, so each gets a listener. */
+/* Header hide-on-scroll — DISABLED (owner verdict: the solid backdrop the
+   overlay needed blanked the background layers behind the topbar; "style
+   over substance", the real estate is lost on purpose). Kept in case we
+   retry with a transparent technique later. */
 function initHeadHide() {
+	const ENABLED = false;
+	if (!ENABLED) return;
 	const head = $("apphead");
 	document.querySelectorAll(".screen").forEach((sc) => {
 		let last = 0;
@@ -201,7 +208,8 @@ function initHeadHide() {
 				const y = sc.scrollTop;
 				const dy = y - last;
 				last = y;
-				if (y < 48) head.classList.remove("hidden"); /* near the top: always show */
+				if (y < 48)
+					head.classList.remove("hidden"); /* near the top: always show */
 				else if (dy > 4) head.classList.add("hidden");
 				else if (dy < -4) head.classList.remove("hidden");
 			},
@@ -902,7 +910,8 @@ function renderLoadout() {
 		<div id="edWarnHost"></div>
 		<div id="edGroups"></div>
 		<button class="addbtn" id="addGroupBtn">+ Add group</button>
-		<button class="cta restorebtn" id="restoreBtn"><span class="tri"></span>Restore standard loadout</button>`;
+		<button class="cta restorebtn" id="restoreBtn"><span class="tri"></span>Restore standard loadout</button>
+		<button class="donebtn" id="loadoutDone">Done</button>`;
 
 	/* subtle warning when the user deleted every core task (SPEC §4) */
 	if (tierTasks(state.groups, "core").length === 0) {
@@ -938,6 +947,12 @@ function renderLoadout() {
 				? `Restored ${added} standard task${added === 1 ? "" : "s"}`
 				: "Nothing missing — already standard",
 		);
+	});
+
+	/* everything saves instantly — Done just closes the sheet, same as ✕ */
+	$("loadoutDone").addEventListener("click", () => {
+		blip("ui");
+		closeLoadout();
 	});
 }
 
@@ -1148,7 +1163,10 @@ function renderSystem() {
 			<button class="switch" id="marksSwitch" role="switch" aria-checked="${!!state.marksRight}" aria-label="Checkmarks on right"></button>
 		</div>
 
-		<div class="menu-row">
+		<!-- App-name row HIDDEN (rename disabled — remove the hidden attr and
+		     re-enable the brandName lines in applySettings + the change
+		     listener below to bring it back) -->
+		<div class="menu-row" hidden>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M6 16L16 6l2 2L8 18l-4 1z"/></svg>
 			<div class="mt"><b>App name</b><small>shown in the header — make it yours</small></div>
 			<input class="brandinput" id="brandInput" type="text" maxlength="24" value="${esc(state.brandName || "Protocol")}" aria-label="App name">
@@ -1169,7 +1187,10 @@ function renderSystem() {
 			<div class="mt"><b>Reset protocol</b><small>testing helper — removes the run entirely</small></div>
 		</button>
 
-		<button class="menu-row" id="sysInstallRow">
+		<!-- Install row HIDDEN (it mostly just told people HOW to install;
+		     the browser's own prompt does the job) — kept wired for the
+		     future: delete the hidden attr to bring it back -->
+		<button class="menu-row" id="sysInstallRow" hidden>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
 			<div class="mt"><b>Install app</b><small>${installSubtitle()}</small></div>
 		</button>
@@ -1189,7 +1210,8 @@ function renderSystem() {
 			<div class="mt"><b>Wipe all data</b><small>erase log &amp; protocols — keeps the loadout</small></div>
 		</button>
 
-		<div class="sysfoot">Protocol · <b>${APP_VERSION}</b> · no excuses / just results</div>`;
+		<div class="sysfoot">Protocol · <b>${APP_VERSION}</b><br>
+		No Excuses / Just Results</div>`;
 
 	/* --- rollover: re-renders but never rewrites the log (SPEC §3.3) --- */
 	$("rollInput").addEventListener("change", (e) => {
@@ -1234,7 +1256,10 @@ function renderSystem() {
 	$("burstSwitch").addEventListener("click", (e) => {
 		state.soundMode = state.soundMode === "interrupt" ? "smart" : "interrupt";
 		setSoundMode(state.soundMode);
-		e.currentTarget.setAttribute("aria-checked", state.soundMode !== "interrupt");
+		e.currentTarget.setAttribute(
+			"aria-checked",
+			state.soundMode !== "interrupt",
+		);
 		persist();
 		blip("ui");
 	});
@@ -1253,7 +1278,7 @@ function renderSystem() {
 		if (!e.target.closest(".switch")) $("marksSwitch").click();
 	});
 
-	/* --- app name (header brand) --- */
+	/* --- app name (header brand) — row is hidden, wiring stays for re-enable --- */
 	$("brandInput").addEventListener("change", (e) => {
 		state.brandName = e.target.value.trim() || "Protocol";
 		e.target.value = state.brandName;
