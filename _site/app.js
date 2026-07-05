@@ -23,7 +23,7 @@ import {
 import { blip, setEnabled as setSoundEnabled } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.1.0";
+const APP_VERSION = "v1.1.1";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -81,10 +81,14 @@ function confirmHud(title, msg, { danger = false, yes = "Confirm" } = {}){
 		$("chYes").textContent = yes;
 		const hud = $("confirmHud");
 		hud.classList.toggle("danger", danger);
+		/* a confirm must be modal even over the System drawer / Loadout
+		   sheet (z 11): .raised lifts the scrim to z 12, under the confirm (13) */
+		$("scrim").classList.add("raised");
 		openOverlay(hud);
 	});
 }
 function settleConfirm(answer){
+	$("scrim").classList.remove("raised");
 	closeOverlay($("confirmHud"));
 	if (confirmResolve){ confirmResolve(answer); confirmResolve = null; }
 }
@@ -96,6 +100,11 @@ function openOverlay(el){
 	   reopen within 300ms (e.g. the wipe double-confirm) gets force-hidden */
 	clearTimeout(hideTimers.get(el));
 	$("scrim").classList.add("open");
+	if (!el.hidden){
+		/* still visible (mid fade-out): re-open in place, no blink */
+		el.classList.add("open");
+		return;
+	}
 	el.hidden = false;
 	requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("open")));
 }
@@ -115,6 +124,8 @@ function isOpen(id){ return $(id).classList.contains("open"); }
    ============================================================ */
 function applyTrack(){
 	$("track").style.transform = `translateX(${-tabIndex * 100}%)`;
+	const vp = $("viewport");
+	if (vp.scrollLeft) vp.scrollLeft = 0; /* belt-and-braces vs any residual focus-scroll */
 }
 
 function showTab(i, { silent = false } = {}){
@@ -122,7 +133,11 @@ function showTab(i, { silent = false } = {}){
 	tabIndex = i;
 	$("track").classList.remove("dragging");
 	applyTrack();
-	TAB_IDS.forEach((t, k) => $("tab-" + t).setAttribute("aria-selected", k === i));
+	TAB_IDS.forEach((t, k) => {
+		$("tab-" + t).setAttribute("aria-selected", k === i);
+		/* off-screen tabs leave the tab order and screen-reader flow */
+		$("screen-" + t).inert = k !== i;
+	});
 	if (changed && !silent) blip("nav");
 	/* billet cascade on entering 30 Days (SPEC §9) */
 	if (changed && TAB_IDS[i] === "prot") renderProt({ entering: true });
@@ -136,7 +151,17 @@ function initSwipe(){
 	const track = $("track");
 	let drag = null;
 
+	/* drop the drag without committing anything — snap back where we were */
+	const abortDrag = () => {
+		drag = null;
+		track.classList.remove("dragging");
+		applyTrack();
+	};
+
 	viewport.addEventListener("pointerdown", e => {
+		/* one drag at a time: a second finger / resting palm must not steal
+		   or corrupt a live drag (its events are filtered by pointerId below) */
+		if (drag) return;
 		if (e.pointerType === "mouse" && e.button !== 0) return;
 		drag = {
 			id: e.pointerId,
@@ -148,7 +173,10 @@ function initSwipe(){
 	});
 
 	viewport.addEventListener("pointermove", e => {
-		if (!drag) return;
+		if (!drag || e.pointerId !== drag.id) return;
+		/* mouse released outside the window: no pointerup ever arrives here,
+		   and hover moves would otherwise keep feeding a stale drag */
+		if (e.pointerType === "mouse" && e.buttons === 0){ abortDrag(); return; }
 		const dx = e.clientX - drag.startX;
 		const dy = e.clientY - drag.startY;
 		if (!drag.decided){
@@ -171,24 +199,29 @@ function initSwipe(){
 		track.style.transform = `translateX(${offset}px)`;
 	});
 
-	const end = e => {
-		if (!drag) return;
+	viewport.addEventListener("pointerup", e => {
+		if (!drag || e.pointerId !== drag.id) return;
 		const d = drag;
 		drag = null;
-		if (!d.decided || !d.horizontal) return;
 		track.classList.remove("dragging");
+		if (!d.decided || !d.horizontal) return; /* transform was never touched */
 		const dx = e.clientX - d.startX;
 		let target = tabIndex;
-		/* commit on distance OR flick velocity — the standard app feel */
-		if (Math.abs(dx) > d.width * 0.22 || Math.abs(d.vel) > 0.45){
-			target = tabIndex + (dx < 0 ? 1 : -1);
-		}
+		/* flick velocity decides the direction when it triggers the commit —
+		   a sharp flick BACK after a small drag must cancel, not advance */
+		if (Math.abs(d.vel) > 0.45) target = tabIndex + (d.vel < 0 ? 1 : -1);
+		else if (Math.abs(dx) > d.width * 0.22) target = tabIndex + (dx < 0 ? 1 : -1);
 		target = Math.max(0, Math.min(TAB_IDS.length - 1, target));
 		if (target === tabIndex) applyTrack(); /* snap back */
 		else showTab(target);
-	};
-	viewport.addEventListener("pointerup", end);
-	viewport.addEventListener("pointercancel", end);
+	});
+
+	/* a cancelled gesture (notification shade, rotation, palm rejection)
+	   never commits — platform convention is to snap back */
+	viewport.addEventListener("pointercancel", e => {
+		if (!drag || e.pointerId !== drag.id) return;
+		abortDrag();
+	});
 }
 
 /* ---------- render orchestration ---------- */
@@ -907,9 +940,14 @@ function renderSystem(){
 			<div class="mt"><b>Edit loadout</b><small>groups, tasks, core / bonus / passive</small></div>
 		</button>
 
-		<button class="menu-row" id="sysProtRow">
+		<button class="menu-row" id="sysProtRow" hidden>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2l8 5v10l-8 5-8-5V7z"/></svg>
 			<div class="mt"><b id="sysProtTitle"></b><small id="sysProtSub"></small></div>
+		</button>
+
+		<button class="menu-row danger" id="sysResetRow" hidden>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+			<div class="mt"><b>Reset protocol</b><small>testing helper — removes the run entirely</small></div>
 		</button>
 
 		<button class="menu-row" id="sysInstallRow">
@@ -984,24 +1022,29 @@ function renderSystem(){
 		openLoadout();
 	});
 
-	/* --- contextual protocol row (no abort — fail / start over / reset-for-testing) --- */
-	const protTitle = $("sysProtTitle"), protSub = $("sysProtSub");
+	/* --- contextual protocol row (no abort — an ACTIVE run has no legit
+	   exit, so the row hides) + a separate testing-only reset row that is
+	   reachable in EVERY state a test session can produce --- */
+	const protRow = $("sysProtRow"), protTitle = $("sysProtTitle"), protSub = $("sysProtSub");
 	if (!prot){
+		protRow.hidden = false;
 		protTitle.textContent = "Initiate 30-day protocol";
 		protSub.textContent = "begin the crucible from today";
-		$("sysProtRow").addEventListener("click", initiateProtocol);
+		protRow.addEventListener("click", initiateProtocol);
 	} else if (st.status === "FAILED"){
+		protRow.hidden = false;
 		protTitle.textContent = "Start over";
 		protSub.textContent = "failed · lived days stay on the calendar";
-		$("sysProtRow").addEventListener("click", startOver);
+		protRow.addEventListener("click", startOver);
 	} else if (st.status === "SUSTAINED"){
+		protRow.hidden = false;
 		protTitle.textContent = "Archive protocol";
 		protSub.textContent = "sustained · started " + fmtShort(st.startD);
-		$("sysProtRow").addEventListener("click", archiveProtocol);
-	} else {
-		protTitle.textContent = "Reset protocol";
-		protSub.textContent = "testing helper — removes the run entirely";
-		$("sysProtRow").addEventListener("click", resetProtocol);
+		protRow.addEventListener("click", archiveProtocol);
+	}
+	if (prot){
+		$("sysResetRow").hidden = false;
+		$("sysResetRow").addEventListener("click", resetProtocol);
 	}
 
 	/* --- install (captured beforeinstallprompt, or a pointer to the browser menu) --- */

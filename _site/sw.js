@@ -7,7 +7,7 @@
    cross-origin requests like Google Analytics pass straight through).
    ============================================================ */
 
-const CACHE = "30dod-v1.1.0";
+const CACHE = "30dod-v1.1.1";
 
 /* NOTE: "/" (not "/index.html") — the .htaccess clean-URL rule 301s
    /index.html to /, and a cached redirected response is rejected by
@@ -35,7 +35,12 @@ const SHELL = [
 	"/icons/apple-touch-icon.png",
 	"/favicon.ico",
 	"/assets/img/qr-kiande.svg",
-	/* check-off soundboard — cached so the app stays fully offline */
+];
+
+/* Soundboard (~700 KB) is cached best-effort in a second pass: a single
+   dropped audio fetch on flaky mobile must not fail the atomic core-shell
+   install and leave the app with no offline capability at all. */
+const SOUNDS = [
 	"/sounds/dude_hehhehheh.mp3",
 	"/sounds/dude_idefinitelyneed.mp3",
 	"/sounds/dude_ididntexpectthat.mp3",
@@ -60,7 +65,12 @@ self.addEventListener("install", event => {
 		caches.open(CACHE)
 			/* cache:"reload" bypasses the HTTP cache — otherwise a deploy could
 			   lock day-old app.js/styles.css (1-day TTL) into the new cache */
-			.then(cache => cache.addAll(SHELL.map(url => new Request(url, { cache: "reload" }))))
+			.then(async cache => {
+				await cache.addAll(SHELL.map(url => new Request(url, { cache: "reload" })));
+				await Promise.allSettled(
+					SOUNDS.map(url => cache.add(new Request(url, { cache: "reload" })).catch(() => { /* best effort */ }))
+				);
+			})
 			.then(() => self.skipWaiting())
 	);
 });

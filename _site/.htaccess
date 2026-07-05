@@ -74,6 +74,8 @@ FileETag None
 AddType image/svg+xml svg svgz
 AddType font/woff2 woff2
 AddType application/manifest+json webmanifest
+AddType audio/mpeg mp3
+AddType audio/wav wav
 
 # --- Security headers ---
 # Four headers on; CSP + HSTS intentionally skipped for a Tier 1 site.
@@ -113,4 +115,6 @@ AddType application/manifest+json webmanifest
 	ExpiresByType image/svg+xml "access plus 1 year"
 	ExpiresByType image/x-icon "access plus 1 year"
 	ExpiresByType font/woff2 "access plus 1 year"
+	ExpiresByType audio/mpeg "access plus 1 year"
+	ExpiresByType audio/wav "access plus 1 year"
 </IfModule>

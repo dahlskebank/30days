@@ -150,7 +150,11 @@ html{ scrollbar-width:thin; scrollbar-color:var(--gold-lo) transparent; }
 
 /* ---------- swipe track: the three tab screens side by side ---------- */
 .viewport{
-	flex:1; min-height:0; overflow:hidden; position:relative;
+	flex:1; min-height:0; position:relative;
+	/* clip, not hidden: hidden makes this a scroll container, and moving
+	   keyboard/screen-reader focus into an off-screen tab would scroll it
+	   sideways and permanently desync it from the track transform */
+	overflow:clip;
 	touch-action:pan-y; /* vertical scroll stays native; horizontal drag is ours */
 }
 .track{
@@ -696,6 +700,9 @@ body.marks-right .task .label{ text-align:left; }
 	opacity:0; pointer-events:none; transition:opacity .25s;
 }
 .scrim.open{ opacity:1; pointer-events:auto; }
+/* while a confirm dialog is up, the scrim rises above the panels (z 11)
+   so the drawer/sheet underneath is not interactive behind the confirm */
+.scrim.raised{ z-index:12; }
 
 .hud{
 	position:fixed; left:0; right:0; bottom:0; z-index:11;
@@ -738,6 +745,8 @@ body.marks-right .task .label{ text-align:left; }
 	transition:opacity .15s, transform .15s var(--snap);
 }
 .hud-confirm.open{ transform:translateY(-50%) scale(1); opacity:1; }
+/* it fades out in place — must not eat taps while invisible */
+.hud-confirm:not(.open){ pointer-events:none; }
 .hud-msg{ color:var(--dim); font-size:13.5px; margin:12px 0 4px; }
 .hud-actions{ display:flex; gap:10px; align-items:center; }
 .hud-actions .ghost{ flex:1; }
