@@ -28,7 +28,13 @@ Sample volume: `SAMPLE_VOLUME` in sound.js (0.7).
 | `delete` | deleting a task or group in Loadout | synth "falling zap + thud" |
 | `nav` / `ui` | tab switch / generic buttons | synth ticks (kept per owner) |
 
-Priority per tap: **all-core → section → all-passive → all-bonus → check.**
+Priority per tap: **all-done → all-core → section → all-passive → all-bonus → check.**
+
+## Waiting for a file
+
+| Event | Trigger | Current behavior |
+|---|---|---|
+| `alldone` | EVERY task in every tier checked — the perfect day | synth rising fanfare placeholder. Drop an `alldone_*` file (owner shortlist: MK "Flawless Victory", WC "Job's done!", FF victory fanfare, Duke "Hail to the king", DX:HR objective stinger) |
 
 ## Benched (unused, kept in the folder)
 

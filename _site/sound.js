@@ -64,6 +64,7 @@ const SFX = {
 		],
 		fallback: "uncheck",
 	},
+	alldone: { pool: [], fallback: "fanfare", important: true }, /* EVERY task in every tier — drop an alldone_* file in /sounds */
 	section: { pool: ["section_dude_aahthatsthestuff.mp3"], fallback: "check", important: true },
 	allcore: { pool: ["allcore_serious-sam-extra-life.mp3"], fallback: "full", important: true },
 	allbonus: { pool: ["allbonus_dude_ifeelbetter.mp3"], fallback: null, important: true },
@@ -160,6 +161,16 @@ function synth(kind) {
 			tone(c, 659, t, 0.09, 0.11);
 			tone(c, 880, t + 0.09, 0.09, 0.11);
 			tone(c, 1318, t + 0.18, 0.22, 0.12);
+			break;
+		case "fanfare":
+			/* the perfect-day stinger (synth placeholder until a file lands):
+			   rising five-note run capped with a sustained high octave */
+			tone(c, 523, t, 0.09, 0.1);
+			tone(c, 659, t + 0.09, 0.09, 0.1);
+			tone(c, 784, t + 0.18, 0.09, 0.11);
+			tone(c, 1047, t + 0.27, 0.1, 0.11);
+			tone(c, 1568, t + 0.38, 0.34, 0.12);
+			tone(c, 784, t + 0.38, 0.34, 0.06); /* octave under the top note — fuller finish */
 			break;
 		case "delete":
 			/* falling zap + a low thud at the bottom — something got shredded */

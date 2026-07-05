@@ -43,7 +43,7 @@ import {
 } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.2.1";
+const APP_VERSION = "v1.2.2";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -501,8 +501,18 @@ function onToggleTask(key, task, group, live) {
 		group.tasks.length > 0 &&
 		group.tasks.every((t) => doneSet.has(t.id));
 
+	/* the perfect day: every task in every tier checked — outranks all
+	   other sound events when the final checkmark lands */
+	const allDoneOf = (st) =>
+		st.coreDone === st.coreTotal &&
+		st.bonusDone === st.bonusTotal &&
+		st.passiveDone === st.passiveTotal &&
+		st.coreTotal + st.bonusTotal + st.passiveTotal > 0;
+	const crossedAllDone = nowDone && !allDoneOf(before) && allDoneOf(after);
+
 	// VERIFY: checking the last core task fires the all-core sound + AUGMENTED decode; unchecking reverts state
 	if (!nowDone) blip("uncheck");
+	else if (crossedAllDone) blip("alldone");
 	else if (crossedAllCore) blip("allcore");
 	else if (sectionComplete) blip("section");
 	else if (crossedAllPassive) blip("allpassive");
