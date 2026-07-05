@@ -15,55 +15,84 @@
 
 import * as storage from "./storage.js";
 import {
-	PROT_LEN, MONTHS, keyOf, dateOf, addDays, diffDays, fmtLong, genId,
-	effectiveToday, dayStats, chargeWord, heatColor, currentStreak,
-	bestStreakInRange, currentProtocol, protocolStatus, protocolMarker,
-	protocolWindow, restoreStandard, tierTasks,
+	PROT_LEN,
+	MONTHS,
+	keyOf,
+	dateOf,
+	addDays,
+	diffDays,
+	fmtLong,
+	genId,
+	effectiveToday,
+	dayStats,
+	chargeWord,
+	heatColor,
+	currentStreak,
+	bestStreakInRange,
+	currentProtocol,
+	protocolStatus,
+	protocolMarker,
+	protocolWindow,
+	restoreStandard,
+	tierTasks,
 } from "./model.js";
 import { blip, setEnabled as setSoundEnabled } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.1.3";
+const APP_VERSION = "v1.1.5";
 
 /* ---------- state ---------- */
 let state = storage.load();
 const firstRun = !state;
-if (firstRun){
+if (firstRun) {
 	state = storage.seed();
 	storage.requestPersist();
 }
 
 const TAB_IDS = ["today", "prot", "cal"];
 let tabIndex = 0;
-let calCursor = null;               /* first-of-month Date the calendar shows */
-let editingKey = null;              /* day the editor overlay has open */
+let calCursor = null; /* first-of-month Date the calendar shows */
+let editingKey = null; /* day the editor overlay has open */
 let lastRenderedDay = null;
 let nudgeShown = false;
-let deferredInstall = null;         /* captured beforeinstallprompt event */
+let deferredInstall = null; /* captured beforeinstallprompt event */
 
 /* ---------- tiny DOM helpers ---------- */
-const $ = id => document.getElementById(id);
-function esc(s){
-	return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const $ = (id) => document.getElementById(id);
+function esc(s) {
+	return String(s)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
 }
-function todayKey(){ return keyOf(effectiveToday(state.rolloverHour)); }
-function fmtShort(d){ return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + " " + d.getFullYear(); }
+function todayKey() {
+	return keyOf(effectiveToday(state.rolloverHour));
+}
+function fmtShort(d) {
+	return (
+		d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + " " + d.getFullYear()
+	);
+}
 
-function persist(){
+function persist() {
 	const ok = storage.save(state);
 	if (!ok) toast("Could not save — storage full or blocked");
 	return ok;
 }
 
-function applySettings(){
+function applySettings() {
 	setSoundEnabled(state.sound);
 	fx.setEnabled(state.fx && !fx.prefersReduced());
 	document.body.classList.toggle("marks-right", !!state.marksRight);
+	/* user-brandable header (System → App name); the installed home-screen
+	   label stays "Protocol" — a manifest can't be personalized per user */
+	document.querySelector(".brand b").textContent = state.brandName || "Protocol";
 }
 
 /* ---------- toast ---------- */
 let toastTimer = null;
-function toast(msg){
+function toast(msg) {
 	const t = $("toast");
 	t.textContent = msg;
 	t.classList.add("show");
@@ -73,8 +102,8 @@ function toast(msg){
 
 /* ---------- confirm HUD (promise-based, replaces window.confirm) ---------- */
 let confirmResolve = null;
-function confirmHud(title, msg, { danger = false, yes = "Confirm" } = {}){
-	return new Promise(resolve => {
+function confirmHud(title, msg, { danger = false, yes = "Confirm" } = {}) {
+	return new Promise((resolve) => {
 		confirmResolve = resolve;
 		$("chTitle").textContent = title;
 		$("chMsg").textContent = msg;
@@ -87,48 +116,61 @@ function confirmHud(title, msg, { danger = false, yes = "Confirm" } = {}){
 		openOverlay(hud);
 	});
 }
-function settleConfirm(answer){
+function settleConfirm(answer) {
 	$("scrim").classList.remove("raised");
 	closeOverlay($("confirmHud"));
-	if (confirmResolve){ confirmResolve(answer); confirmResolve = null; }
+	if (confirmResolve) {
+		confirmResolve(answer);
+		confirmResolve = null;
+	}
 }
 
 /* ---------- overlay open/close (scrim + sliding panels) ---------- */
 const hideTimers = new WeakMap();
-function openOverlay(el){
+function openOverlay(el) {
 	/* cancel a pending hide from a just-closed overlay — without this a
 	   reopen within 300ms (e.g. the wipe double-confirm) gets force-hidden */
 	clearTimeout(hideTimers.get(el));
 	$("scrim").classList.add("open");
-	if (!el.hidden){
+	if (!el.hidden) {
 		/* still visible (mid fade-out): re-open in place, no blink */
 		el.classList.add("open");
 		return;
 	}
 	el.hidden = false;
-	requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("open")));
+	requestAnimationFrame(() =>
+		requestAnimationFrame(() => el.classList.add("open")),
+	);
 }
-function closeOverlay(el){
+function closeOverlay(el) {
 	el.classList.remove("open");
-	hideTimers.set(el, setTimeout(() => { el.hidden = true; }, 320));
+	hideTimers.set(
+		el,
+		setTimeout(() => {
+			el.hidden = true;
+		}, 320),
+	);
 	if (!anyOverlayOpen()) $("scrim").classList.remove("open");
 }
-function anyOverlayOpen(){
+function anyOverlayOpen() {
 	return !!document.querySelector(".hud.open, .offcanvas.open");
 }
-function isOpen(id){ return $(id).classList.contains("open"); }
+function isOpen(id) {
+	return $(id).classList.contains("open");
+}
 
 /* ============================================================
    TAB TRACK — tap a nav pill or swipe horizontally between the
    three screens; both animate the same physical slide.
    ============================================================ */
-function applyTrack(){
+function applyTrack() {
 	$("track").style.transform = `translateX(${-tabIndex * 100}%)`;
 	const vp = $("viewport");
-	if (vp.scrollLeft) vp.scrollLeft = 0; /* belt-and-braces vs any residual focus-scroll */
+	if (vp.scrollLeft)
+		vp.scrollLeft = 0; /* belt-and-braces vs any residual focus-scroll */
 }
 
-function showTab(i, { silent = false } = {}){
+function showTab(i, { silent = false } = {}) {
 	const changed = i !== tabIndex;
 	tabIndex = i;
 	$("track").classList.remove("dragging");
@@ -146,7 +188,7 @@ function showTab(i, { silent = false } = {}){
 /* swipe engine: vertical scrolling stays native (touch-action:pan-y on the
    viewport); once a drag is clearly horizontal we capture the pointer and
    drive the track transform directly, then snap on release. */
-function initSwipe(){
+function initSwipe() {
 	const viewport = $("viewport");
 	const track = $("track");
 	let drag = null;
@@ -158,33 +200,47 @@ function initSwipe(){
 		applyTrack();
 	};
 
-	viewport.addEventListener("pointerdown", e => {
+	viewport.addEventListener("pointerdown", (e) => {
 		/* one drag at a time: a second finger / resting palm must not steal
 		   or corrupt a live drag (its events are filtered by pointerId below) */
 		if (drag) return;
 		if (e.pointerType === "mouse" && e.button !== 0) return;
 		drag = {
 			id: e.pointerId,
-			startX: e.clientX, startY: e.clientY,
-			decided: false, horizontal: false,
+			startX: e.clientX,
+			startY: e.clientY,
+			decided: false,
+			horizontal: false,
 			width: viewport.clientWidth,
-			lastX: e.clientX, lastT: performance.now(), vel: 0,
+			lastX: e.clientX,
+			lastT: performance.now(),
+			vel: 0,
 		};
 	});
 
-	viewport.addEventListener("pointermove", e => {
+	viewport.addEventListener("pointermove", (e) => {
 		if (!drag || e.pointerId !== drag.id) return;
 		/* mouse released outside the window: no pointerup ever arrives here,
 		   and hover moves would otherwise keep feeding a stale drag */
-		if (e.pointerType === "mouse" && e.buttons === 0){ abortDrag(); return; }
+		if (e.pointerType === "mouse" && e.buttons === 0) {
+			abortDrag();
+			return;
+		}
 		const dx = e.clientX - drag.startX;
 		const dy = e.clientY - drag.startY;
-		if (!drag.decided){
+		if (!drag.decided) {
 			if (Math.abs(dx) < 9 && Math.abs(dy) < 9) return;
 			drag.decided = true;
 			drag.horizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
-			if (!drag.horizontal){ drag = null; return; } /* let native vertical scroll have it */
-			try { viewport.setPointerCapture(drag.id); } catch (err){ /* pointer already gone */ }
+			if (!drag.horizontal) {
+				drag = null;
+				return;
+			} /* let native vertical scroll have it */
+			try {
+				viewport.setPointerCapture(drag.id);
+			} catch (err) {
+				/* pointer already gone */
+			}
 			track.classList.add("dragging");
 		}
 		const now = performance.now();
@@ -194,12 +250,13 @@ function initSwipe(){
 
 		let offset = -tabIndex * drag.width + dx;
 		const min = -(TAB_IDS.length - 1) * drag.width;
-		if (offset > 0) offset *= 0.35;                       /* rubber-band past the first tab */
-		if (offset < min) offset = min + (offset - min) * 0.35; /* …and past the last */
+		if (offset > 0) offset *= 0.35; /* rubber-band past the first tab */
+		if (offset < min)
+			offset = min + (offset - min) * 0.35; /* …and past the last */
 		track.style.transform = `translateX(${offset}px)`;
 	});
 
-	viewport.addEventListener("pointerup", e => {
+	viewport.addEventListener("pointerup", (e) => {
 		if (!drag || e.pointerId !== drag.id) return;
 		const d = drag;
 		drag = null;
@@ -210,7 +267,8 @@ function initSwipe(){
 		/* flick velocity decides the direction when it triggers the commit —
 		   a sharp flick BACK after a small drag must cancel, not advance */
 		if (Math.abs(d.vel) > 0.45) target = tabIndex + (d.vel < 0 ? 1 : -1);
-		else if (Math.abs(dx) > d.width * 0.22) target = tabIndex + (dx < 0 ? 1 : -1);
+		else if (Math.abs(dx) > d.width * 0.22)
+			target = tabIndex + (dx < 0 ? 1 : -1);
 		target = Math.max(0, Math.min(TAB_IDS.length - 1, target));
 		if (target === tabIndex) applyTrack(); /* snap back */
 		else showTab(target);
@@ -218,19 +276,19 @@ function initSwipe(){
 
 	/* a cancelled gesture (notification shade, rotation, palm rejection)
 	   never commits — platform convention is to snap back */
-	viewport.addEventListener("pointercancel", e => {
+	viewport.addEventListener("pointercancel", (e) => {
 		if (!drag || e.pointerId !== drag.id) return;
 		abortDrag();
 	});
 }
 
 /* ---------- render orchestration ---------- */
-function renderAll(){
+function renderAll() {
 	renderToday();
 	renderProt();
 	renderCal();
 }
-function refreshOpenPanels(){
+function refreshOpenPanels() {
 	if (isOpen("systemPanel")) renderSystem();
 	if (isOpen("loadoutHud")) renderLoadout();
 	if (editingKey && isOpen("dayHud")) renderDayHud(editingKey);
@@ -239,38 +297,57 @@ function refreshOpenPanels(){
 /* ============================================================
    TODAY (SPEC §6.1)
    ============================================================ */
-function renderToday(){
+function renderToday() {
 	const key = todayKey();
 	const s = dayStats(state, key);
 
 	/* --- day mark: protocol context or FREE RUN --- */
 	const prot = currentProtocol(state);
 	const mark = $("todayMark");
-	if (!prot){
+	if (!prot) {
 		mark.innerHTML = `FREE <em>RUN</em>`;
 	} else {
 		const st = protocolStatus(state, prot);
-		if (st.status === "FAILED") mark.innerHTML = `PROTOCOL <em class="failed">FAILED</em>`;
-		else if (st.status === "SUSTAINED") mark.innerHTML = `DAY ${st.dayNumber} <em>· SUSTAINED</em>`;
+		if (st.status === "FAILED")
+			mark.innerHTML = `PROTOCOL <em class="failed">FAILED</em>`;
+		else if (st.status === "SUSTAINED")
+			mark.innerHTML = `DAY ${st.dayNumber} <em>· SUSTAINED</em>`;
 		else mark.innerHTML = `DAY ${st.dayNumber} <em>/ ${PROT_LEN}</em>`;
 	}
 	$("todayDate").textContent = fmtLong(effectiveToday(state.rolloverHour));
 
+	/* the header hairline's triangular notch tracks the month's progress —
+	   not just decoration: it creeps right as the month burns down */
+	const eff = effectiveToday(state.rolloverHour);
+	const daysInMonth = new Date(eff.getFullYear(), eff.getMonth() + 1, 0).getDate();
+	const monthPct = Math.round((eff.getDate() / daysInMonth) * 100);
+	document.querySelector(".rule").style.setProperty("--rp", monthPct + "%");
+
 	/* --- gauge --- */
 	$("gCount").textContent = s.coreDone;
 	$("gTotal").textContent = s.coreTotal;
-	$("gPct").textContent = "CHARGE " + Math.round(s.ratio * 100) + "%" + (s.ratio >= 1 && s.bonusDone > 0 ? " +" + s.bonusDone : "");
+	$("gPct").textContent =
+		"CHARGE " +
+		Math.round(s.ratio * 100) +
+		"%" +
+		(s.ratio >= 1 && s.bonusDone > 0 ? " +" + s.bonusDone : "");
 	const stateEl = $("gState");
-	fx.cancelDecode(stateEl); /* a mid-scramble AUGMENTED decode must not overwrite a fresh lower state word */
+	fx.cancelDecode(
+		stateEl,
+	); /* a mid-scramble AUGMENTED decode must not overwrite a fresh lower state word */
 	stateEl.textContent = chargeWord(s);
-	stateEl.style.color = (s.ratio > 0 || s.bonusDone > 0) ? heatColor(Math.max(s.ratio, 0.3)) : "var(--faint)";
+	stateEl.style.color =
+		s.ratio > 0 || s.bonusDone > 0
+			? heatColor(Math.max(s.ratio, 0.3))
+			: "var(--faint)";
 
 	updateMolten(false);
 
 	const ticks = $("gTicks");
-	if (ticks.childElementCount !== s.coreTotal){
+	if (ticks.childElementCount !== s.coreTotal) {
 		ticks.innerHTML = "";
-		for (let i = 0; i < s.coreTotal; i++) ticks.appendChild(document.createElement("i"));
+		for (let i = 0; i < s.coreTotal; i++)
+			ticks.appendChild(document.createElement("i"));
 	}
 
 	/* --- overcharge cells + passive triangle (SPEC §4/§6.1) --- */
@@ -280,19 +357,19 @@ function renderToday(){
 	cells.classList.toggle("overclocked", s.ratio >= 1 && s.bonusDone > 0);
 	const done = new Set(state.log[key] || []);
 	const bonus = tierTasks(state.groups, "bonus");
-	if (bonus.length){
+	if (bonus.length) {
 		const cap = document.createElement("span");
 		cap.className = "cap";
 		cap.textContent = "Overcharge";
 		cells.appendChild(cap);
-		bonus.forEach(t => {
+		bonus.forEach((t) => {
 			const c = document.createElement("span");
 			c.className = "cell-hex" + (done.has(t.id) ? " lit" : "");
 			c.title = t.label;
 			cells.appendChild(c);
 		});
 	}
-	if (s.passiveTotal > 0){
+	if (s.passiveTotal > 0) {
 		const wrap = document.createElement("span");
 		wrap.className = "passive-ind";
 		wrap.innerHTML = `<span class="cap">Passive</span><span class="ptri${s.allPassive ? " on" : ""}" id="ptri" title="All passive rules online"></span>`;
@@ -302,36 +379,39 @@ function renderToday(){
 	/* --- task groups, user order --- */
 	const host = $("todayGroups");
 	host.innerHTML = "";
-	state.groups.forEach(g => host.appendChild(groupEl(g, key, true)));
+	state.groups.forEach((g) => host.appendChild(groupEl(g, key, true)));
 }
 
-function updateMolten(fromZero){
+function updateMolten(fromZero) {
 	const key = todayKey();
 	const s = dayStats(state, key);
 	const molten = $("gMolten");
-	if (fromZero){
+	if (fromZero) {
 		molten.style.transition = "none";
 		molten.style.width = "0%";
 		void molten.offsetWidth;
 		molten.style.transition = "";
 	}
-	molten.style.width = (s.ratio * 100) + "%";
-	molten.style.boxShadow = s.ratio > 0 ? `0 0 ${10 + s.ratio * 22}px rgba(240,179,84,${0.3 + s.ratio * 0.5})` : "none";
+	molten.style.width = s.ratio * 100 + "%";
+	molten.style.boxShadow =
+		s.ratio > 0
+			? `0 0 ${10 + s.ratio * 22}px rgba(240,179,84,${0.3 + s.ratio * 0.5})`
+			: "none";
 }
 
 /* One task-group block; used by Today (live) and the day editor (!live). */
-function groupEl(group, key, live){
+function groupEl(group, key, live) {
 	const done = new Set(state.log[key] || []);
 	const wrap = document.createElement("section");
 	wrap.className = "group";
 
 	const head = document.createElement("div");
 	head.className = "group-head";
-	const n = group.tasks.filter(t => done.has(t.id)).length;
+	const n = group.tasks.filter((t) => done.has(t.id)).length;
 	head.innerHTML = `<span class="name">${esc(group.name)}</span><span class="frac">${n} / ${group.tasks.length}</span>`;
 	wrap.appendChild(head);
 
-	group.tasks.forEach(t => {
+	group.tasks.forEach((t) => {
 		const isDone = done.has(t.id);
 		const btn = document.createElement("button");
 		btn.className = "task";
@@ -342,7 +422,9 @@ function groupEl(group, key, live){
 		/* tier tag only for non-core; whole row toggles */
 		btn.innerHTML =
 			`<span class="mark"></span>` +
-			(t.tier !== "core" ? `<span class="tag">${t.tier.toUpperCase()}</span>` : "") +
+			(t.tier !== "core"
+				? `<span class="tag">${t.tier.toUpperCase()}</span>`
+				: "") +
 			`<span class="label">${esc(t.label)}</span>`;
 		btn.addEventListener("click", () => onToggleTask(key, t, group, live));
 		wrap.appendChild(btn);
@@ -354,22 +436,29 @@ function groupEl(group, key, live){
    plus the AUGMENTED / section-complete / passive-online transitions.
    Sound priority per tap: all-core > section complete > all-passive
    > all-bonus > plain check (one sample per tap, never a pile-up). */
-function onToggleTask(key, task, group, live){
+function onToggleTask(key, task, group, live) {
 	const before = dayStats(state, key);
 
 	const arr = (state.log[key] || []).slice();
 	const at = arr.indexOf(task.id);
 	const nowDone = at < 0;
-	if (nowDone) arr.push(task.id); else arr.splice(at, 1);
+	if (nowDone) arr.push(task.id);
+	else arr.splice(at, 1);
 	state.log[key] = arr;
 	persist();
 
 	const after = dayStats(state, key);
 	const crossedAllCore = before.ratio < 1 && after.ratio >= 1;
 	const crossedAllPassive = !before.allPassive && after.allPassive;
-	const crossedAllBonus = after.bonusTotal > 0 && before.bonusDone < before.bonusTotal && after.bonusDone === after.bonusTotal;
+	const crossedAllBonus =
+		after.bonusTotal > 0 &&
+		before.bonusDone < before.bonusTotal &&
+		after.bonusDone === after.bonusTotal;
 	const doneSet = new Set(arr);
-	const sectionComplete = nowDone && group.tasks.length > 0 && group.tasks.every(t => doneSet.has(t.id));
+	const sectionComplete =
+		nowDone &&
+		group.tasks.length > 0 &&
+		group.tasks.every((t) => doneSet.has(t.id));
 
 	// VERIFY: checking the last core task fires the all-core sound + AUGMENTED decode; unchecking reverts state
 	if (!nowDone) blip("uncheck");
@@ -387,12 +476,19 @@ function onToggleTask(key, task, group, live){
 
 	const scope = live ? $("screen-today") : $("dayHud");
 	/* CSS.escape: imported backups may carry ids with selector metacharacters */
-	const markEl = scope.querySelector(`.task[data-task-id="${CSS.escape(task.id)}"] .mark`);
+	const markEl = scope.querySelector(
+		`.task[data-task-id="${CSS.escape(task.id)}"] .mark`,
+	);
 	/* the bar's leading-edge flash belongs to core checks only — bonus and
 	   passive never move the bar (SPEC §4/§9) */
-	if (nowDone) fx.checkMoment(markEl, live && task.tier === "core" ? $("gMolten") : null);
-	if (live){
-		if (crossedAllCore) fx.augmented(document.querySelector("#screen-today .crucible"), $("gState"));
+	if (nowDone)
+		fx.checkMoment(markEl, live && task.tier === "core" ? $("gMolten") : null);
+	if (live) {
+		if (crossedAllCore)
+			fx.augmented(
+				document.querySelector("#screen-today .crucible"),
+				$("gState"),
+			);
 		if (crossedAllPassive) fx.passiveFlash($("ptri"));
 	}
 }
@@ -402,13 +498,13 @@ function onToggleTask(key, task, group, live){
    ends by FAILING (core streak breaks) or SUSTAINING. After a
    fail you start over — always, constantly.)
    ============================================================ */
-function renderProt({ entering = false } = {}){
+function renderProt({ entering = false } = {}) {
 	const host = $("screen-prot");
 	host.innerHTML = "";
 	const prot = currentProtocol(state);
 
 	/* --- no active protocol --- */
-	if (!prot){
+	if (!prot) {
 		host.innerHTML = `
 			<div class="noprot">
 				<div class="hexlogo"><span>30</span></div>
@@ -425,15 +521,19 @@ function renderProt({ entering = false } = {}){
 
 	/* --- eyebrow + streak block --- */
 	let statusWord = "";
-	if (st.status === "FAILED") statusWord = ` · <span class="status-failed">FAILED</span>`;
+	if (st.status === "FAILED")
+		statusWord = ` · <span class="status-failed">FAILED</span>`;
 	else if (st.status === "SUSTAINED") statusWord = ` · SUSTAINED`;
 
 	const lastIdx = Math.min(st.idx, PROT_LEN - 1);
-	let full = 0, sum = 0, counted = 0;
-	for (let i = 0; i <= lastIdx; i++){
+	let full = 0,
+		sum = 0,
+		counted = 0;
+	for (let i = 0; i <= lastIdx; i++) {
 		const r = dayStats(state, keyOf(addDays(st.startD, i))).ratio;
 		if (r >= 1) full++;
-		sum += r; counted++;
+		sum += r;
+		counted++;
 	}
 	const streak = currentStreak(state);
 	const best = bestStreakInRange(state, st.startD, addDays(st.startD, lastIdx));
@@ -451,12 +551,14 @@ function renderProt({ entering = false } = {}){
 	/* --- honeycomb billet: 30 hexes, rows 6-5-6-5-6-2, offset --- */
 	const hive = document.createElement("div");
 	hive.className = "hive";
-	const rows = [6, 5, 6, 5, 6, 2];
+	/* 5 clean rows of 6 (even rows offset half a hex = honeycomb) — the old
+	   6-5-6-5-6-2 left days 29+30 orphaned on their own row */
+	const rows = [6, 6, 6, 6, 6];
 	let idx = 0;
-	rows.forEach(count => {
+	rows.forEach((count) => {
 		const row = document.createElement("div");
 		row.className = "hive-row";
-		for (let c = 0; c < count; c++){
+		for (let c = 0; c < count; c++) {
 			const i = idx++;
 			const key = keyOf(addDays(st.startD, i));
 			const hex = document.createElement("button");
@@ -464,21 +566,24 @@ function renderProt({ entering = false } = {}){
 			hex.innerHTML = `<span class="dnum">${i + 1}</span>`;
 
 			const isFuture = i > st.idx;
-			const isDead = st.failIdx >= 0 && i > st.failIdx; /* the run is dead past the fracture */
+			const isDead =
+				st.failIdx >= 0 &&
+				i > st.failIdx; /* the run is dead past the fracture */
 
-			if (isFuture){
+			if (isFuture) {
 				hex.disabled = true;
 				hex.classList.add(isDead ? "dead" : "future");
 				hex.setAttribute("aria-label", `Day ${i + 1}, not started`);
 			} else {
 				const ds = dayStats(state, key);
-				if (i === st.failIdx){
+				if (i === st.failIdx) {
 					/* the breaking day: fracture — heavier hatch + thin red ring */
 					hex.classList.add("fract");
-					hex.style.background = ds.ratio > 0 ? heatColor(ds.ratio) : "var(--miss)";
-				} else if (isDead){
+					hex.style.background =
+						ds.ratio > 0 ? heatColor(ds.ratio) : "var(--miss)";
+				} else if (isDead) {
 					hex.classList.add("dead");
-				} else if (ds.ratio === 0){
+				} else if (ds.ratio === 0) {
 					/* 0% CORE is a miss even if bonus/passive were checked —
 					   charge is core-only (SPEC §4) and the day breaks streaks */
 					hex.classList.add("miss");
@@ -486,13 +591,21 @@ function renderProt({ entering = false } = {}){
 					hex.style.background = heatColor(ds.ratio);
 					if (ds.ratio >= 0.6) hex.classList.add("hot");
 					/* OVERCLOCKED days glow stronger — shadow scales with bonus count (SPEC §4) */
-					if (ds.ratio >= 1) hex.style.boxShadow = `0 0 ${16 + ds.bonusDone * 6}px rgba(240,179,84,${0.45 + ds.bonusDone * 0.12})`;
+					if (ds.ratio >= 1)
+						hex.style.boxShadow = `0 0 ${16 + ds.bonusDone * 6}px rgba(240,179,84,${0.45 + ds.bonusDone * 0.12})`;
 				}
-				if (i === st.idx && st.status !== "SUSTAINED") hex.classList.add("today");
-				hex.setAttribute("aria-label", `Day ${i + 1}, ${Math.round(ds.ratio * 100)} percent. Edit.`);
+				if (i === st.idx && st.status !== "SUSTAINED")
+					hex.classList.add("today");
+				hex.setAttribute(
+					"aria-label",
+					`Day ${i + 1}, ${Math.round(ds.ratio * 100)} percent. Edit.`,
+				);
 				/* tapping any non-future hex opens the day editor — including dead
 				   ones: a backfill must be able to un-fail the run (SPEC §7) */
-				hex.addEventListener("click", () => { blip("ui"); openDay(key); });
+				hex.addEventListener("click", () => {
+					blip("ui");
+					openDay(key);
+				});
 			}
 			row.appendChild(hex);
 		}
@@ -501,7 +614,7 @@ function renderProt({ entering = false } = {}){
 	host.appendChild(hive);
 
 	/* SUSTAINED (day > 30): the hive stays 30, the number keeps climbing */
-	if (st.status === "SUSTAINED"){
+	if (st.status === "SUSTAINED") {
 		const line = document.createElement("div");
 		line.className = "sustain-line";
 		line.textContent = `SUSTAINED · DAY ${st.dayNumber}`;
@@ -517,23 +630,30 @@ function renderProt({ entering = false } = {}){
 	   FAILED, ARCHIVE when SUSTAINED --- */
 	const actions = document.createElement("div");
 	actions.className = "prot-actions";
-	if (st.status === "FAILED"){
+	if (st.status === "FAILED") {
 		actions.innerHTML = `<button class="cta" id="startOverBtn"><span class="tri"></span>Start over</button>`;
 		actions.querySelector("#startOverBtn").addEventListener("click", startOver);
-	} else if (st.status === "SUSTAINED"){
+	} else if (st.status === "SUSTAINED") {
 		actions.innerHTML = `<button class="ghost" id="archiveBtn">Archive protocol</button>`;
-		actions.querySelector("#archiveBtn").addEventListener("click", archiveProtocol);
+		actions
+			.querySelector("#archiveBtn")
+			.addEventListener("click", archiveProtocol);
 	}
 	host.appendChild(actions);
 
 	if (entering) fx.cascade(hive);
 }
 
-async function initiateProtocol(){
+async function initiateProtocol() {
 	blip("ui");
-	const ok = await confirmHud("Initiate protocol", "30 days, starting today. Strictly pass/fail: one day below 100% core and the run is dead.", { yes: "Initiate" });
+	const ok = await confirmHud(
+		"Initiate protocol",
+		"30 days, starting today. Strictly pass/fail: one day below 100% core and the run is dead.",
+		{ yes: "Initiate" },
+	);
 	if (!ok) return;
-	if (currentProtocol(state)) return; /* the button only renders when there is none — just a guard */
+	if (currentProtocol(state))
+		return; /* the button only renders when there is none — just a guard */
 	state.protocols.push({ id: genId(), start: todayKey() });
 	persist();
 	blip("initiate");
@@ -545,11 +665,15 @@ async function initiateProtocol(){
 
 /* FAILED → start over: the dead run is archived (its lived days stay
    red on the calendar) and a fresh 30-day window begins today. */
-async function startOver(){
+async function startOver() {
 	blip("ui");
 	const prot = currentProtocol(state);
 	if (!prot) return;
-	const ok = await confirmHud("Start over", "The failed run is archived — the days it lived stay red on the calendar. A fresh 30-day window starts today.", { yes: "Start over" });
+	const ok = await confirmHud(
+		"Start over",
+		"The failed run is archived — the days it lived stay red on the calendar. A fresh 30-day window starts today.",
+		{ yes: "Start over" },
+	);
 	if (!ok) return;
 	prot.archived = true;
 	state.protocols.push({ id: genId(), start: todayKey() });
@@ -560,11 +684,15 @@ async function startOver(){
 	toast("New protocol — day 1 of 30");
 }
 
-async function archiveProtocol(){
+async function archiveProtocol() {
 	blip("ui");
 	const prot = currentProtocol(state);
 	if (!prot) return;
-	const ok = await confirmHud("Archive protocol", "Removes it from this view. The window and its markers stay in the calendar history forever.", { yes: "Archive" });
+	const ok = await confirmHud(
+		"Archive protocol",
+		"Removes it from this view. The window and its markers stay in the calendar history forever.",
+		{ yes: "Archive" },
+	);
 	if (!ok) return;
 	prot.archived = true;
 	persist();
@@ -576,11 +704,15 @@ async function archiveProtocol(){
 /* Testing helper (System): deletes the current run outright, as if it was
    never initiated — no calendar markers left behind. Meant to be disabled
    for the proper go-live. */
-async function resetProtocol(){
+async function resetProtocol() {
 	blip("ui");
 	const prot = currentProtocol(state);
 	if (!prot) return;
-	const ok = await confirmHud("Reset protocol", "Testing helper: removes the current run entirely, as if never initiated. No calendar markers remain.", { danger: true, yes: "Reset" });
+	const ok = await confirmHud(
+		"Reset protocol",
+		"Testing helper: removes the current run entirely, as if never initiated. No calendar markers remain.",
+		{ danger: true, yes: "Reset" },
+	);
 	if (!ok) return;
 	state.protocols.splice(state.protocols.indexOf(prot), 1);
 	persist();
@@ -592,14 +724,17 @@ async function resetProtocol(){
 /* ============================================================
    CALENDAR (SPEC §6.3)
    ============================================================ */
-function renderCal(){
+function renderCal() {
 	const today = effectiveToday(state.rolloverHour);
-	if (!calCursor) calCursor = new Date(today.getFullYear(), today.getMonth(), 1);
-	const y = calCursor.getFullYear(), m = calCursor.getMonth();
+	if (!calCursor)
+		calCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+	const y = calCursor.getFullYear(),
+		m = calCursor.getMonth();
 
 	$("calMon").innerHTML = `${MONTHS[m]} <em>${y}</em>`;
 	/* upper bound: current month (no lower bound) */
-	$("calNext").disabled = (y === today.getFullYear() && m === today.getMonth()) || calCursor > today;
+	$("calNext").disabled =
+		(y === today.getFullYear() && m === today.getMonth()) || calCursor > today;
 
 	const first = new Date(y, m, 1);
 	const startOffset = (first.getDay() + 6) % 7; /* Monday-first */
@@ -610,7 +745,7 @@ function renderCal(){
 	   FAILED runs only mark the days they lived (start → breaking day):
 	   starting over must not paint 30 red days. Newest run wins overlaps. */
 	// VERIFY: calendar keeps gold/red hex markers for ALL past protocol windows across months
-	const windows = state.protocols.map(p => ({
+	const windows = state.protocols.map((p) => ({
 		...protocolWindow(state, p),
 		color: protocolMarker(state, p),
 	}));
@@ -618,13 +753,13 @@ function renderCal(){
 	const grid = $("calGrid");
 	grid.innerHTML = "";
 
-	for (let i = 0; i < startOffset; i++){
+	for (let i = 0; i < startOffset; i++) {
 		const pad = document.createElement("div");
 		pad.className = "cell out";
 		grid.appendChild(pad);
 	}
 
-	for (let day = 1; day <= daysInMonth; day++){
+	for (let day = 1; day <= daysInMonth; day++) {
 		const d = new Date(y, m, day);
 		const key = keyOf(d);
 		const cell = document.createElement("button");
@@ -634,30 +769,37 @@ function renderCal(){
 		const rel = diffDays(d, today);
 		const beforeLog = diffDays(d, earliest) < 0;
 
-		if (rel > 0){
+		if (rel > 0) {
 			cell.classList.add("future");
 			cell.disabled = true;
 			cell.setAttribute("aria-label", `${fmtLong(d)}, upcoming`);
-		} else if (beforeLog){
+		} else if (beforeLog) {
 			cell.classList.add("pre");
 			cell.disabled = true;
 			cell.setAttribute("aria-label", `${fmtLong(d)}, before tracking began`);
 		} else {
 			const ds = dayStats(state, key);
-			if (ds.ratio === 0){
+			if (ds.ratio === 0) {
 				cell.classList.add("miss");
 			} else {
 				cell.style.background = heatColor(ds.ratio);
 				if (ds.ratio >= 0.6) cell.classList.add("hot");
 			}
 			if (rel === 0) cell.classList.add("today");
-			cell.setAttribute("aria-label", `${fmtLong(d)}, ${Math.round(ds.ratio * 100)} percent. Edit.`);
-			cell.addEventListener("click", () => { blip("ui"); openDay(key); });
+			cell.setAttribute(
+				"aria-label",
+				`${fmtLong(d)}, ${Math.round(ds.ratio * 100)} percent. Edit.`,
+			);
+			cell.addEventListener("click", () => {
+				blip("ui");
+				openDay(key);
+			});
 		}
 
 		let marker = null;
-		for (const w of windows){
-			if (diffDays(d, w.startD) >= 0 && diffDays(w.endD, d) >= 0) marker = w.color;
+		for (const w of windows) {
+			if (diffDays(d, w.startD) >= 0 && diffDays(w.endD, d) >= 0)
+				marker = w.color;
 		}
 		if (marker) cell.classList.add(marker === "red" ? "prot-red" : "prot-gold");
 
@@ -672,18 +814,18 @@ function renderCal(){
 /* ============================================================
    DAY EDITOR — hard-edged HUD panel for backfilling (SPEC §2/§6.3)
    ============================================================ */
-function openDay(key){
+function openDay(key) {
 	editingKey = key;
 	renderDayHud(key);
 	openOverlay($("dayHud"));
 }
-function renderDayHud(key){
+function renderDayHud(key) {
 	const d = dateOf(key);
 	const s = dayStats(state, key);
 
 	let title = fmtLong(d);
 	const prot = currentProtocol(state);
-	if (prot){
+	if (prot) {
 		const i = diffDays(d, dateOf(prot.start));
 		if (i >= 0 && i < PROT_LEN) title = `Protocol day ${i + 1}`;
 	}
@@ -691,14 +833,22 @@ function renderDayHud(key){
 	$("dhDate").textContent = fmtLong(d);
 
 	const pill = $("dhHeat");
-	pill.textContent = Math.round(s.ratio * 100) + "%" + (s.bonusDone ? " +" + s.bonusDone : "") + " · " + chargeWord(s);
-	pill.style.color = (s.ratio > 0 || s.bonusDone > 0) ? heatColor(Math.max(s.ratio, 0.35)) : "var(--dim)";
+	pill.textContent =
+		Math.round(s.ratio * 100) +
+		"%" +
+		(s.bonusDone ? " +" + s.bonusDone : "") +
+		" · " +
+		chargeWord(s);
+	pill.style.color =
+		s.ratio > 0 || s.bonusDone > 0
+			? heatColor(Math.max(s.ratio, 0.35))
+			: "var(--dim)";
 
 	const host = $("dhTasks");
 	host.innerHTML = "";
-	state.groups.forEach(g => host.appendChild(groupEl(g, key, false)));
+	state.groups.forEach((g) => host.appendChild(groupEl(g, key, false)));
 }
-function closeDayHud(){
+function closeDayHud() {
 	if ($("dayHud").hidden) return;
 	closeOverlay($("dayHud"));
 	editingKey = null;
@@ -708,18 +858,18 @@ function closeDayHud(){
 /* ============================================================
    LOADOUT — bottom sheet editor (SPEC §6.4)
    ============================================================ */
-function openLoadout(){
+function openLoadout() {
 	renderLoadout();
 	openOverlay($("loadoutHud"));
 	fx.decode($("loadoutTitle")); /* once per open, not per re-render */
 }
-function closeLoadout(){
+function closeLoadout() {
 	if ($("loadoutHud").hidden) return;
 	closeOverlay($("loadoutHud"));
 	renderAll(); /* loadout edits reshape Today immediately */
 }
 
-function renderLoadout(){
+function renderLoadout() {
 	const host = $("loadoutBody");
 	host.innerHTML = `
 		<div class="ed-note"><b>CORE</b> defines the 100% daily minimum · <b>BONUS</b> is overcharge beyond it · <b>PASSIVE</b> are standing rules, all-or-nothing.</div>
@@ -729,12 +879,15 @@ function renderLoadout(){
 		<button class="cta restorebtn" id="restoreBtn"><span class="tri"></span>Restore standard loadout</button>`;
 
 	/* subtle warning when the user deleted every core task (SPEC §4) */
-	if (tierTasks(state.groups, "core").length === 0){
-		$("edWarnHost").innerHTML = `<div class="ed-warn">No core tasks — every day counts as complete.</div>`;
+	if (tierTasks(state.groups, "core").length === 0) {
+		$("edWarnHost").innerHTML =
+			`<div class="ed-warn">No core tasks — every day counts as complete.</div>`;
 	}
 
 	const groupsHost = $("edGroups");
-	state.groups.forEach((g, gi) => groupsHost.appendChild(loadoutGroupEl(g, gi)));
+	state.groups.forEach((g, gi) =>
+		groupsHost.appendChild(loadoutGroupEl(g, gi)),
+	);
 
 	$("addGroupBtn").addEventListener("click", () => {
 		state.groups.push({ id: genId(), name: "New group", tasks: [] });
@@ -745,27 +898,34 @@ function renderLoadout(){
 
 	$("restoreBtn").addEventListener("click", async () => {
 		blip("ui");
-		const ok = await confirmHud("Restore standard loadout",
-			"Re-adds any missing standard tasks to their groups. Your custom tasks and tier changes stay untouched.", { yes: "Restore" });
+		const ok = await confirmHud(
+			"Restore standard loadout",
+			"Re-adds any missing standard tasks to their groups. Your custom tasks and tier changes stay untouched.",
+			{ yes: "Restore" },
+		);
 		if (!ok) return;
 		const added = restoreStandard(state);
 		persist();
 		renderLoadout();
-		toast(added ? `Restored ${added} standard task${added === 1 ? "" : "s"}` : "Nothing missing — already standard");
+		toast(
+			added
+				? `Restored ${added} standard task${added === 1 ? "" : "s"}`
+				: "Nothing missing — already standard",
+		);
 	});
 }
 
 const TIER_CYCLE = { core: "bonus", bonus: "passive", passive: "core" };
 const TRASH_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>`;
 
-function moveItem(arr, i, dir){
+function moveItem(arr, i, dir) {
 	const j = i + dir;
 	if (j < 0 || j >= arr.length) return false;
 	[arr[i], arr[j]] = [arr[j], arr[i]];
 	return true;
 }
 
-function ordBtns(list, i, onMove){
+function ordBtns(list, i, onMove) {
 	const wrap = document.createElement("span");
 	wrap.className = "ordbtns";
 	const up = document.createElement("button");
@@ -777,13 +937,25 @@ function ordBtns(list, i, onMove){
 	down.setAttribute("aria-label", "Move down");
 	down.disabled = i === list.length - 1;
 	// VERIFY: loadout reorder (groups + tasks) persists and reorders Today immediately
-	up.addEventListener("click", () => { if (moveItem(list, i, -1)){ persist(); blip("ui"); onMove(); } });
-	down.addEventListener("click", () => { if (moveItem(list, i, 1)){ persist(); blip("ui"); onMove(); } });
+	up.addEventListener("click", () => {
+		if (moveItem(list, i, -1)) {
+			persist();
+			blip("ui");
+			onMove();
+		}
+	});
+	down.addEventListener("click", () => {
+		if (moveItem(list, i, 1)) {
+			persist();
+			blip("ui");
+			onMove();
+		}
+	});
 	wrap.append(up, down);
 	return wrap;
 }
 
-function loadoutGroupEl(g, gi){
+function loadoutGroupEl(g, gi) {
 	const box = document.createElement("div");
 	box.className = "ed-group";
 
@@ -807,10 +979,12 @@ function loadoutGroupEl(g, gi){
 	delG.setAttribute("aria-label", "Delete group");
 	delG.innerHTML = TRASH_SVG;
 	delG.addEventListener("click", async () => {
-		if (g.tasks.length){
-			const ok = await confirmHud("Delete group",
+		if (g.tasks.length) {
+			const ok = await confirmHud(
+				"Delete group",
 				`Delete "${g.name}" and its ${g.tasks.length} task${g.tasks.length === 1 ? "" : "s"}? Past check-offs of those tasks stop counting.`,
-				{ danger: true, yes: "Delete" });
+				{ danger: true, yes: "Delete" },
+			);
 			if (!ok) return;
 		}
 		state.groups.splice(gi, 1);
@@ -838,7 +1012,9 @@ function loadoutGroupEl(g, gi){
 			persist();
 			blip("ui");
 			const warnNeeded = tierTasks(state.groups, "core").length === 0;
-			$("edWarnHost").innerHTML = warnNeeded ? `<div class="ed-warn">No core tasks — every day counts as complete.</div>` : "";
+			$("edWarnHost").innerHTML = warnNeeded
+				? `<div class="ed-warn">No core tasks — every day counts as complete.</div>`
+				: "";
 		});
 
 		const input = document.createElement("input");
@@ -875,9 +1051,13 @@ function loadoutGroupEl(g, gi){
 		blip("ui");
 		renderLoadout();
 		/* focus + select the new input so typing replaces the placeholder */
-		const inputs = $("edGroups").children[gi]?.querySelectorAll(".ed-task input");
+		const inputs =
+			$("edGroups").children[gi]?.querySelectorAll(".ed-task input");
 		const last = inputs && inputs[inputs.length - 1];
-		if (last){ last.focus(); last.select(); }
+		if (last) {
+			last.focus();
+			last.select();
+		}
 	});
 	box.appendChild(add);
 
@@ -887,24 +1067,25 @@ function loadoutGroupEl(g, gi){
 /* ============================================================
    SYSTEM — offcanvas menu (SPEC §6.5 + install + display prefs)
    ============================================================ */
-function openSystem(){
+function openSystem() {
 	renderSystem();
 	openOverlay($("systemPanel"));
 	fx.decode($("systemTitle"));
 }
-function closeSystem(){
+function closeSystem() {
 	if ($("systemPanel").hidden) return;
 	closeOverlay($("systemPanel"));
 	renderAll();
 }
 
-function installSubtitle(){
-	if (matchMedia("(display-mode: standalone)").matches) return "already installed — you're running it";
+function installSubtitle() {
+	if (matchMedia("(display-mode: standalone)").matches)
+		return "already installed — you're running it";
 	if (deferredInstall) return "add to your home screen";
 	return "browser menu → Install app / Add to Home screen";
 }
 
-function renderSystem(){
+function renderSystem() {
 	const host = $("systemBody");
 	const prot = currentProtocol(state);
 	const st = prot ? protocolStatus(state, prot) : null;
@@ -933,6 +1114,12 @@ function renderSystem(){
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
 			<div class="mt"><b>Checkmarks on right</b><small>flip task rows: text left, triangle right</small></div>
 			<button class="switch" id="marksSwitch" role="switch" aria-checked="${!!state.marksRight}" aria-label="Checkmarks on right"></button>
+		</div>
+
+		<div class="menu-row">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M6 16L16 6l2 2L8 18l-4 1z"/></svg>
+			<div class="mt"><b>App name</b><small>shown in the header — make it yours</small></div>
+			<input class="brandinput" id="brandInput" type="text" maxlength="24" value="${esc(state.brandName || "Protocol")}" aria-label="App name">
 		</div>
 
 		<button class="menu-row" id="sysEditRow">
@@ -973,7 +1160,7 @@ function renderSystem(){
 		<div class="sysfoot">Protocol · <b>${APP_VERSION}</b> · no cookies, no cloud, no excuses</div>`;
 
 	/* --- rollover: re-renders but never rewrites the log (SPEC §3.3) --- */
-	$("rollInput").addEventListener("change", e => {
+	$("rollInput").addEventListener("change", (e) => {
 		let h = parseInt(e.target.value, 10);
 		if (isNaN(h) || h < 0) h = 0;
 		if (h > 23) h = 23;
@@ -985,7 +1172,7 @@ function renderSystem(){
 	});
 
 	/* --- sound: toggling ON plays the check sound as confirmation (SPEC §10) --- */
-	$("soundSwitch").addEventListener("click", e => {
+	$("soundSwitch").addEventListener("click", (e) => {
 		state.sound = !state.sound;
 		setSoundEnabled(state.sound);
 		e.currentTarget.setAttribute("aria-checked", state.sound);
@@ -994,7 +1181,7 @@ function renderSystem(){
 	});
 
 	/* --- FX master toggle (SPEC §9) --- */
-	$("fxSwitch").addEventListener("click", e => {
+	$("fxSwitch").addEventListener("click", (e) => {
 		if (fx.prefersReduced()) return; /* system preference wins */
 		state.fx = !state.fx;
 		fx.setEnabled(state.fx);
@@ -1003,7 +1190,7 @@ function renderSystem(){
 	});
 
 	/* --- checkmark side --- */
-	$("marksSwitch").addEventListener("click", e => {
+	$("marksSwitch").addEventListener("click", (e) => {
 		state.marksRight = !state.marksRight;
 		document.body.classList.toggle("marks-right", state.marksRight);
 		e.currentTarget.setAttribute("aria-checked", state.marksRight);
@@ -1012,9 +1199,24 @@ function renderSystem(){
 	});
 
 	/* the 52×28 switches are small — let the whole row toggle them */
-	$("sysSoundRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("soundSwitch").click(); });
-	$("sysFxRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("fxSwitch").click(); });
-	$("sysMarksRow").addEventListener("click", e => { if (!e.target.closest(".switch")) $("marksSwitch").click(); });
+	$("sysSoundRow").addEventListener("click", (e) => {
+		if (!e.target.closest(".switch")) $("soundSwitch").click();
+	});
+	$("sysFxRow").addEventListener("click", (e) => {
+		if (!e.target.closest(".switch")) $("fxSwitch").click();
+	});
+	$("sysMarksRow").addEventListener("click", (e) => {
+		if (!e.target.closest(".switch")) $("marksSwitch").click();
+	});
+
+	/* --- app name (header brand) --- */
+	$("brandInput").addEventListener("change", (e) => {
+		state.brandName = e.target.value.trim() || "Protocol";
+		e.target.value = state.brandName;
+		applySettings();
+		persist();
+		blip("ui");
+	});
 
 	$("sysEditRow").addEventListener("click", () => {
 		blip("ui");
@@ -1025,24 +1227,26 @@ function renderSystem(){
 	/* --- contextual protocol row (no abort — an ACTIVE run has no legit
 	   exit, so the row hides) + a separate testing-only reset row that is
 	   reachable in EVERY state a test session can produce --- */
-	const protRow = $("sysProtRow"), protTitle = $("sysProtTitle"), protSub = $("sysProtSub");
-	if (!prot){
+	const protRow = $("sysProtRow"),
+		protTitle = $("sysProtTitle"),
+		protSub = $("sysProtSub");
+	if (!prot) {
 		protRow.hidden = false;
 		protTitle.textContent = "Initiate 30-day protocol";
 		protSub.textContent = "begin the crucible from today";
 		protRow.addEventListener("click", initiateProtocol);
-	} else if (st.status === "FAILED"){
+	} else if (st.status === "FAILED") {
 		protRow.hidden = false;
 		protTitle.textContent = "Start over";
 		protSub.textContent = "failed · lived days stay on the calendar";
 		protRow.addEventListener("click", startOver);
-	} else if (st.status === "SUSTAINED"){
+	} else if (st.status === "SUSTAINED") {
 		protRow.hidden = false;
 		protTitle.textContent = "Archive protocol";
 		protSub.textContent = "sustained · started " + fmtShort(st.startD);
 		protRow.addEventListener("click", archiveProtocol);
 	}
-	if (prot){
+	if (prot) {
 		$("sysResetRow").hidden = false;
 		$("sysResetRow").addEventListener("click", resetProtocol);
 	}
@@ -1050,14 +1254,14 @@ function renderSystem(){
 	/* --- install (captured beforeinstallprompt, or a pointer to the browser menu) --- */
 	$("sysInstallRow").addEventListener("click", async () => {
 		blip("ui");
-		if (matchMedia("(display-mode: standalone)").matches){
+		if (matchMedia("(display-mode: standalone)").matches) {
 			toast("Already installed — this is the app");
 			return;
 		}
-		if (deferredInstall){
+		if (deferredInstall) {
 			deferredInstall.prompt();
 			const choice = await deferredInstall.userChoice.catch(() => null);
-			if (choice && choice.outcome === "accepted"){
+			if (choice && choice.outcome === "accepted") {
 				deferredInstall = null;
 				toast("Installing — check your home screen");
 			}
@@ -1072,9 +1276,17 @@ function renderSystem(){
 	/* --- wipe: double confirm; keeps loadout, erases log + protocols (SPEC §6.5) --- */
 	$("sysWipeRow").addEventListener("click", async () => {
 		blip("ui");
-		const first = await confirmHud("Wipe all data", "Erases the entire log and all protocol history. The loadout and settings stay.", { danger: true, yes: "Wipe" });
+		const first = await confirmHud(
+			"Wipe all data",
+			"Erases the entire log and all protocol history. The loadout and settings stay.",
+			{ danger: true, yes: "Wipe" },
+		);
 		if (!first) return;
-		const second = await confirmHud("Confirm wipe", "There is no undo. Export a backup first if in doubt.", { danger: true, yes: "Wipe everything" });
+		const second = await confirmHud(
+			"Confirm wipe",
+			"There is no undo. Export a backup first if in doubt.",
+			{ danger: true, yes: "Wipe everything" },
+		);
 		if (!second) return;
 		const tk = todayKey();
 		state.log = {};
@@ -1090,9 +1302,11 @@ function renderSystem(){
 }
 
 /* ---------- backup: export / import (SPEC §6.5, §11) ---------- */
-function exportBackup(){
+function exportBackup() {
 	blip("ui");
-	const blob = new Blob([storage.exportJSON(state)], { type: "application/json" });
+	const blob = new Blob([storage.exportJSON(state)], {
+		type: "application/json",
+	});
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");
 	a.href = url;
@@ -1101,13 +1315,14 @@ function exportBackup(){
 	a.click();
 	a.remove();
 	URL.revokeObjectURL(url);
-	state.lastBackupNudge = todayKey(); /* nudge clock resets on export (SPEC §11) */
+	state.lastBackupNudge =
+		todayKey(); /* nudge clock resets on export (SPEC §11) */
 	persist();
 	toast("Backup downloaded");
 }
 
 // VERIFY: export → wipe → import round-trips identical state
-function importBackup(file){
+function importBackup(file) {
 	const reader = new FileReader();
 	reader.onload = () => {
 		try {
@@ -1120,7 +1335,7 @@ function importBackup(file){
 			/* don't let a success toast clobber persist()'s failure toast —
 			   an unsaved restore silently reverts on the next launch */
 			if (saved) toast("Backup restored");
-		} catch (err){
+		} catch (err) {
 			toast(err.message || "That file isn't a valid backup");
 		}
 	};
@@ -1132,7 +1347,7 @@ function importBackup(file){
    BACKUP NUDGE (SPEC §11)
    ============================================================ */
 // VERIFY: backup nudge appears after 14 days, clears on export
-function maybeNudgeBackup(){
+function maybeNudgeBackup() {
 	if (nudgeShown) return;
 	const entries = Object.keys(state.log).length;
 	if (entries < 7) return;
@@ -1146,9 +1361,9 @@ function maybeNudgeBackup(){
    ROLLOVER WATCH
    ============================================================ */
 // VERIFY: rollover — at 04:59 local the app shows yesterday; at 05:00 it flips and yesterday is committed
-function dayTick(){
+function dayTick() {
 	const tk = todayKey();
-	if (tk !== lastRenderedDay){
+	if (tk !== lastRenderedDay) {
 		lastRenderedDay = tk;
 		calCursor = null;
 		renderAll();
@@ -1159,19 +1374,33 @@ function dayTick(){
 /* ============================================================
    INIT
    ============================================================ */
-function init(){
+function init() {
 	applySettings();
 	lastRenderedDay = todayKey();
 
 	/* tabs — tapping animates the same slide the swipe performs */
-	TAB_IDS.forEach((t, i) => $("tab-" + t).addEventListener("click", () => showTab(i)));
+	TAB_IDS.forEach((t, i) =>
+		$("tab-" + t).addEventListener("click", () => showTab(i)),
+	);
 	initSwipe();
 
 	/* panels */
-	$("systemBtn").addEventListener("click", () => { blip("ui"); openSystem(); });
-	$("systemClose").addEventListener("click", () => { blip("ui"); closeSystem(); });
-	$("editLoadoutBtn").addEventListener("click", () => { blip("ui"); openLoadout(); });
-	$("loadoutClose").addEventListener("click", () => { blip("ui"); closeLoadout(); });
+	$("systemBtn").addEventListener("click", () => {
+		blip("ui");
+		openSystem();
+	});
+	$("systemClose").addEventListener("click", () => {
+		blip("ui");
+		closeSystem();
+	});
+	$("editLoadoutBtn").addEventListener("click", () => {
+		blip("ui");
+		openLoadout();
+	});
+	$("loadoutClose").addEventListener("click", () => {
+		blip("ui");
+		closeLoadout();
+	});
 
 	/* calendar month nav */
 	$("calPrev").addEventListener("click", () => {
@@ -1187,30 +1416,57 @@ function init(){
 
 	/* overlays: scrim + Escape close whatever is on top */
 	$("scrim").addEventListener("click", () => {
-		if (confirmResolve){ settleConfirm(false); return; }
-		if (isOpen("dayHud")){ closeDayHud(); return; }
-		if (isOpen("loadoutHud")){ closeLoadout(); return; }
+		if (confirmResolve) {
+			settleConfirm(false);
+			return;
+		}
+		if (isOpen("dayHud")) {
+			closeDayHud();
+			return;
+		}
+		if (isOpen("loadoutHud")) {
+			closeLoadout();
+			return;
+		}
 		if (isOpen("systemPanel")) closeSystem();
 	});
-	$("dhDone").addEventListener("click", () => { blip("ui"); closeDayHud(); });
-	$("chYes").addEventListener("click", () => { blip("ui"); settleConfirm(true); });
-	$("chNo").addEventListener("click", () => { blip("ui"); settleConfirm(false); });
-	document.addEventListener("keydown", e => {
+	$("dhDone").addEventListener("click", () => {
+		blip("ui");
+		closeDayHud();
+	});
+	$("chYes").addEventListener("click", () => {
+		blip("ui");
+		settleConfirm(true);
+	});
+	$("chNo").addEventListener("click", () => {
+		blip("ui");
+		settleConfirm(false);
+	});
+	document.addEventListener("keydown", (e) => {
 		if (e.key !== "Escape") return;
-		if (confirmResolve){ settleConfirm(false); return; }
-		if (isOpen("dayHud")){ closeDayHud(); return; }
-		if (isOpen("loadoutHud")){ closeLoadout(); return; }
+		if (confirmResolve) {
+			settleConfirm(false);
+			return;
+		}
+		if (isOpen("dayHud")) {
+			closeDayHud();
+			return;
+		}
+		if (isOpen("loadoutHud")) {
+			closeLoadout();
+			return;
+		}
 		if (isOpen("systemPanel")) closeSystem();
 	});
 
 	/* import file picker */
-	$("fileInput").addEventListener("change", e => {
+	$("fileInput").addEventListener("change", (e) => {
 		if (e.target.files[0]) importBackup(e.target.files[0]);
 		e.target.value = "";
 	});
 
 	/* PWA install: capture the browser's prompt so the System row can fire it */
-	window.addEventListener("beforeinstallprompt", e => {
+	window.addEventListener("beforeinstallprompt", (e) => {
 		e.preventDefault();
 		deferredInstall = e;
 		if (isOpen("systemPanel")) renderSystem();
@@ -1226,12 +1482,14 @@ function init(){
 
 	/* rollover watch: interval + wake-from-background */
 	setInterval(dayTick, 30000);
-	document.addEventListener("visibilitychange", () => { if (!document.hidden) dayTick(); });
+	document.addEventListener("visibilitychange", () => {
+		if (!document.hidden) dayTick();
+	});
 
 	/* another instance saved (installed PWA + browser tab open at once):
 	   whole-state saves are last-write-wins, so re-load and re-render
 	   whenever a sibling writes */
-	window.addEventListener("storage", e => {
+	window.addEventListener("storage", (e) => {
 		if (e.key !== storage.STORAGE_KEY || e.newValue === null) return;
 		const fresh = storage.load();
 		if (!fresh) return;
@@ -1263,9 +1521,14 @@ function init(){
 	   localhost counts as a secure context, so local testing gets the SW too. */
 	// VERIFY: offline — airplane mode after first load, app fully works, fonts render
 	// VERIFY: install to Android home screen from kiande.com over HTTPS; standalone, no browser chrome
-	if ("serviceWorker" in navigator &&
-		(location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(location.hostname))){
-		navigator.serviceWorker.register("/sw.js").catch(() => { /* offline-first is progressive */ });
+	if (
+		"serviceWorker" in navigator &&
+		(location.protocol === "https:" ||
+			["localhost", "127.0.0.1"].includes(location.hostname))
+	) {
+		navigator.serviceWorker.register("/sw.js").catch(() => {
+			/* offline-first is progressive */
+		});
 		/* after a deploy the new worker installs in the background while the
 		   old cache serves this page — without this, the new version only
 		   shows on the SECOND visit. When the fresh worker takes control,

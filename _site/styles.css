@@ -173,15 +173,17 @@ html{ scrollbar-width:thin; scrollbar-color:var(--gold-lo) transparent; }
 .iconbtn svg{ width:22px; height:22px; }
 .iconbtn:hover{ color:var(--gold); }
 
-/* thin gold hairline with the triangular notch at 34% (SPEC §8) */
+/* thin gold hairline with the triangular notch — the notch position is
+   the current month's progress (--rp set by renderToday; 34% fallback) */
 .rule{
 	height:1px; margin:2px 18px 0;
-	background:linear-gradient(90deg, var(--gold) 0 34%, var(--hair) 34%);
+	background:linear-gradient(90deg, var(--gold) 0 var(--rp, 34%), var(--hair) var(--rp, 34%));
 	position:relative;
 	transform-origin:left center;
+	transition:--rp .4s;
 }
 .rule::after{
-	content:""; position:absolute; left:34%; top:-3px;
+	content:""; position:absolute; left:var(--rp, 34%); top:-3px;
 	border-left:7px solid var(--gold); border-top:3.5px solid transparent; border-bottom:3.5px solid transparent;
 }
 
@@ -359,31 +361,33 @@ body.marks-right .task .label{ text-align:left; }
 /* ============================================================
    30 DAYS (SPEC §6.2)
    ============================================================ */
-.streak{ text-align:center; padding:14px 0 4px; }
+.streak{ text-align:center; padding:8px 0 2px; }
 .streak .num{
-	font-family:var(--disp); font-weight:700; font-size:84px; line-height:.85;
+	font-family:var(--disp); font-weight:700; font-size:68px; line-height:.85;
 	background:linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-lo));
 	-webkit-background-clip:text; background-clip:text; color:transparent;
 	filter:drop-shadow(0 0 18px rgba(240,179,84,.35));
 }
 .streak .num.zero{ background:none; -webkit-text-fill-color:var(--faint); color:var(--faint); filter:none; }
-.streak .lbl{ font-size:10.5px; letter-spacing:.44em; text-transform:uppercase; color:var(--dim); margin-top:8px; }
-.streak .stats{ font-size:11.5px; letter-spacing:.1em; color:var(--faint); margin-top:12px; text-transform:uppercase; }
+.streak .lbl{ font-size:10.5px; letter-spacing:.44em; text-transform:uppercase; color:var(--dim); margin-top:6px; }
+.streak .stats{ font-size:11px; letter-spacing:.1em; color:var(--faint); margin-top:8px; text-transform:uppercase; }
 .streak .stats b{ color:var(--gold); font-weight:600; }
 
-/* honeycomb billet: 30 hexes, rows 6-5-6-5-6-2, offset */
-.hive{ margin-top:18px; padding:0 6px; }
-.hive-row{ display:flex; justify-content:center; gap:6px; }
-.hive-row + .hive-row{ margin-top:-11px; }
+/* honeycomb billet: 30 hexes in 5 rows of 6; even rows shift half a hex
+   for the offset tessellation. Compact so the view fits without scrolling. */
+.hive{ margin-top:14px; padding:0 6px; }
+.hive-row{ display:flex; justify-content:center; gap:5px; }
+.hive-row + .hive-row{ margin-top:-9px; }
+.hive-row:nth-child(even){ transform:translateX(26px); }
 .hex{
-	position:relative; width:60px; height:66px; flex:none;
+	position:relative; width:47px; height:52px; flex:none;
 	clip-path:polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%);
 	background:var(--carbon-2);
 	display:grid; place-items:center;
 	transition:transform .15s, background .35s, box-shadow .35s;
 }
 .hex:active{ transform:scale(.93); }
-.hex .dnum{ font-family:var(--disp); font-weight:600; font-size:15px; color:rgba(236,229,211,.5); position:relative; z-index:2; }
+.hex .dnum{ font-family:var(--disp); font-weight:600; font-size:13px; color:rgba(236,229,211,.5); position:relative; z-index:2; }
 .hex.hot .dnum{ color:rgba(26,14,2,.85); font-weight:700; }
 /* rings are SVG hexagon strokes — an inset box-shadow follows the
    rectangular border box, not the clip shape, and renders as stray
@@ -675,6 +679,13 @@ body.marks-right .task .label{ text-align:left; }
 }
 .roll span{ color:var(--dim); font-family:var(--disp); font-weight:600; }
 
+/* app-name input (System → App name) */
+.brandinput{
+	width:132px; background:var(--carbon-2); border:1px solid var(--hair-2); color:var(--gold);
+	padding:9px 10px; font-family:var(--disp); font-weight:600; font-size:14px; letter-spacing:.06em;
+	clip-path:polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+
 /* hex toggle — the knob is a hexagon (time & energy grammar) */
 .switch{
 	flex:none; width:52px; height:28px; position:relative;
@@ -855,9 +866,10 @@ body.boot-s2 .gauge{ opacity:1; transform:none; transition:opacity .16s var(--sn
 }
 
 /* ---------- small phones ---------- */
-@media (max-width:390px){
-	.hex{ width:54px; height:60px; }
-	.hive-row + .hive-row{ margin-top:-10px; }
+@media (max-width:360px){
+	.hex{ width:42px; height:47px; }
+	.hive-row:nth-child(even){ transform:translateX(23.5px); }
+	.hive-row + .hive-row{ margin-top:-8px; }
 }
 
 /* ---------- noscript ---------- */

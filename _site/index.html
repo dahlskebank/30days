@@ -10,7 +10,7 @@
 			content="width=device-width, initial-scale=1, viewport-fit=cover"
 		/>
 
-		<title>30 Days of Dahl — Daily discipline protocol</title>
+		<title>30 Days of Discipline — Daily discipline protocol</title>
 		<meta
 			name="description"
 			content="A forever-running daily discipline tracker. Check off the daily loadout, bank the streak, survive the 30-day protocol. Styled after Deus Ex: Human Revolution."
@@ -21,10 +21,10 @@
 
 		<!-- Open Graph (Facebook, Discord, LinkedIn…) -->
 		<meta property="og:type" content="website" />
-		<meta property="og:site_name" content="30 Days of Dahl" />
+		<meta property="og:site_name" content="30 Days of Discipline" />
 		<meta property="og:locale" content="en_US" />
 		<meta property="og:url" content="https://kiande.com/" />
-		<meta property="og:title" content="30 Days of Dahl" />
+		<meta property="og:title" content="30 Days of Discipline" />
 		<meta
 			property="og:description"
 			content="A forever-running daily discipline tracker. The log runs forever — the protocol is the crucible."
@@ -38,12 +38,12 @@
 		<meta property="og:image:height" content="630" />
 		<meta
 			property="og:image:alt"
-			content="30 Days of Dahl — daily discipline protocol"
+			content="30 Days of Discipline — daily discipline protocol"
 		/>
 
 		<!-- Twitter / X card -->
 		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content="30 Days of Dahl" />
+		<meta name="twitter:title" content="30 Days of Discipline" />
 		<meta
 			name="twitter:description"
 			content="A forever-running daily discipline tracker. The log runs forever — the protocol is the crucible."
@@ -65,7 +65,10 @@
 	     iOS ignores it and needs these instead (pattern ported from darkdictator.com) -->
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta
+			name="apple-mobile-web-app-status-bar-style"
+			content="black-translucent"
+		/>
 		<meta name="apple-mobile-web-app-title" content="Protocol" />
 
 		<!-- Self-hosted fonts: preload the two that paint first (title + body) -->
@@ -110,7 +113,7 @@
 			{
 				"@context": "https://schema.org",
 				"@type": "WebApplication",
-				"name": "30 Days of Dahl",
+				"name": "30 Days of Discipline",
 				"url": "https://kiande.com/",
 				"description": "A forever-running daily discipline tracker. Check off the daily loadout, bank the streak, survive the 30-day protocol.",
 				"applicationCategory": "LifestyleApplication",
@@ -190,7 +193,7 @@
 					<span class="deck-eyebrow"
 						><span class="tri"></span>Field deployment</span
 					>
-					<div class="deck-title">30 Days<em>of Dahl</em></div>
+					<div class="deck-title">30 Days<em>of Discipline</em></div>
 					<p class="deck-copy">
 						A forever-running daily discipline tracker. Check off the daily
 						loadout, bank the streak, survive the 30-day protocol. The log runs
@@ -219,7 +222,9 @@
 		     ================================================== -->
 			<div class="app">
 				<header class="topbar">
-					<h1 class="brand"><b>Protocol</b><span>Discipline · Augmented</span></h1>
+					<h1 class="brand">
+						<b>Protocol</b><span>Discipline · Augmented</span>
+					</h1>
 					<button class="iconbtn" id="systemBtn" aria-label="System menu">
 						<!-- hex-gear: hexagon + core, per the symbol grammar (hex = system/energy) -->
 						<svg
@@ -250,7 +255,8 @@
 							<section class="gauge" aria-label="Today's progress">
 								<div class="gauge-top">
 									<div class="count">
-										<span id="gCount">0</span><i> / <span id="gTotal">0</span></i>
+										<span id="gCount">0</span
+										><i> / <span id="gTotal">0</span></i>
 									</div>
 									<div class="readout">
 										<div class="pct" id="gPct">CHARGE 0%</div>
@@ -400,7 +406,7 @@
 			<p class="deck-legal">
 				© 1983 ⌁ <span id="footYear">2026</span> →
 				<a href="https://danieldahl.com" title="KiAnDe">KiAnDe.com</a> ·
-				<span id="footVersion">v1.1.3</span>
+				<span id="footVersion">v1.1.5</span>
 			</p>
 		</footer>
 
@@ -435,7 +441,9 @@
 		>
 			<div class="panel-head">
 				<h2 id="loadoutTitle">Loadout</h2>
-				<button class="xbtn" id="loadoutClose" aria-label="Close loadout">✕</button>
+				<button class="xbtn" id="loadoutClose" aria-label="Close loadout">
+					✕
+				</button>
 			</div>
 			<div class="sub">Groups &amp; tasks — changes save instantly</div>
 			<div id="loadoutBody"></div>

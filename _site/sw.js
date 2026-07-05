@@ -7,7 +7,7 @@
    cross-origin requests like Google Analytics pass straight through).
    ============================================================ */
 
-const CACHE = "30dod-v1.1.3";
+const CACHE = "30dod-v1.1.5";
 
 /* NOTE: "/" (not "/index.html") — the .htaccess clean-URL rule 301s
    /index.html to /, and a cached redirected response is rejected by
@@ -67,9 +67,24 @@ self.addEventListener("install", (event) => {
 			/* cache:"reload" bypasses the HTTP cache — otherwise a deploy could
 			   lock day-old app.js/styles.css (1-day TTL) into the new cache */
 			.then(async (cache) => {
-				await cache.addAll(
-					SHELL.map((url) => new Request(url, { cache: "reload" })),
-				);
+				await cache
+					.addAll(SHELL.map((url) => new Request(url, { cache: "reload" })))
+					.catch(async (err) => {
+						/* addAll is atomic and its error never names the culprit —
+						   probe each shell URL so the console says WHICH file 404s
+						   (e.g. a partial deploy that skipped a folder) */
+						const missing = [];
+						for (const url of SHELL) {
+							try {
+								const r = await fetch(url, { cache: "reload" });
+								if (!r.ok) missing.push(url + " → " + r.status);
+							} catch (probeErr) {
+								missing.push(url + " → network error");
+							}
+						}
+						console.error("[sw] install failed — missing shell files:", missing);
+						throw err;
+					});
 				await Promise.allSettled(
 					SOUNDS.map((url) =>
 						cache.add(new Request(url, { cache: "reload" })).catch(() => {
