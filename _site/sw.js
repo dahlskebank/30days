@@ -7,7 +7,7 @@
    cross-origin requests like Google Analytics pass straight through).
    ============================================================ */
 
-const CACHE = "30dod-v1.2.6";
+const CACHE = "30dod-v1.2.8";
 
 /* NOTE: "/" (not "/index.html") — the .htaccess clean-URL rule 301s
    /index.html to /, and a cached redirected response is rejected by

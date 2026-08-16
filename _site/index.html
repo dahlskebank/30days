@@ -205,7 +205,18 @@
 						your phone's own storage, fully offline.
 					</p>
 				</div>
-				<div class="deck-qr">
+				<!-- The QR panel doubles as the desktop preview trigger. It is a real
+				     button element rather than a click-wired div, so it is keyboard
+				     reachable and focusable for free. A QR code's own affordance is
+				     "scan", never "click", so the third caption line spells the click
+				     out. The explicit aria-label is required: without it the accessible
+				     name becomes the QR alt text glued to all three caption lines. -->
+				<button
+					type="button"
+					class="deck-qr"
+					id="previewBtn"
+					aria-label="Preview the phone app on this screen"
+				>
 					<img
 						src="/assets/img/qr-30days.svg"
 						alt="QR code linking to 30days.dfault.it"
@@ -213,9 +224,11 @@
 						height="148"
 					/>
 					<span class="deck-qr-cap"
-						>Deploy to your phone<br />30days.dfault.it</span
+						>Deploy to your phone<br />30days.dfault.it<br /><em
+							>▸ or preview it here</em
+						></span
 					>
-				</div>
+				</button>
 			</aside>
 
 			<!-- ==================================================
@@ -415,9 +428,36 @@
 					>30 Days</a
 				>
 				·
-				<span id="footVersion">v1.2.6</span>
+				<span id="footVersion">v1.2.8</span>
 			</p>
 		</footer>
+
+		<!-- ============================================================
+		     DESKTOP PREVIEW LAYER (≥ 992px, only while html.preview)
+		     Body-level on purpose: .deck is a stacking context capped at
+		     z-index 1, so a bezel drawn inside it could never paint above
+		     the scrim (z10) or the drawer / sheets (z11). This layer sits
+		     in the root stacking context at z30 — over every overlay,
+		     under the boot tap-catcher (z40).
+		     Visibility is pure CSS (.pv is display:none until html.preview
+		     inside the ≥992px query), so dragging the window narrower drops
+		     the whole layer with no JS involved.
+		     ============================================================ -->
+		<div class="pv">
+			<div class="pv-bezel" aria-hidden="true"></div>
+			<div class="pv-bar">
+				<span class="pv-tag"
+					><span class="tri"></span>Preview
+					<b id="pvDims">—</b></span
+				>
+				<div class="pv-size" role="group" aria-label="Simulated phone width">
+					<button type="button" data-w="360" aria-pressed="false">360</button>
+					<button type="button" data-w="412" aria-pressed="true">412</button>
+					<button type="button" data-w="480" aria-pressed="false">480</button>
+				</div>
+				<button type="button" class="pv-exit" id="pvExit">Exit ✕</button>
+			</div>
+		</div>
 
 		<!-- shared scrim for every overlay -->
 		<div class="scrim" id="scrim"></div>

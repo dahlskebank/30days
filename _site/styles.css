@@ -10,6 +10,13 @@
 
 /* ---------- design tokens (SPEC §8) ---------- */
 :root {
+	/* This app is dark, permanently — there is no light theme to switch to.
+	   Declaring it tells the browser to render its OWN chrome dark too:
+	   the rollover hour spinner, the file picker, autofill, and any
+	   scrollbar that escapes the rules below. Without it Chrome paints
+	   those light-mode on a black UI. */
+	color-scheme: dark;
+
 	--void: #0b0a08;
 	--carbon: #12100c;
 	--carbon-2: #1a1712;
@@ -133,30 +140,55 @@ body {
 	text-shadow: none;
 }
 
-/* gold scrollbars — Firefox standard props + WebKit pseudo-elements */
-html {
-	scrollbar-width: thin;
-	scrollbar-color: var(--gold-lo) transparent;
+/* ---------- scrollbars ----------
+   Built from the .rule / .crucible idiom, because a scrollbar is the same
+   object those are: a marker moving along a track. Both of them are a dark
+   hairline-bordered channel with a gold fill and hard edges, so this is too
+   — no border-radius anywhere (the stylesheet has 40 chamfers and, before
+   this, exactly one rounded corner: the old scrollbar thumb).
+
+   Mechanism, ported from the dfault boilerplate: Chromium honours BOTH the
+   standard properties and the ::-webkit-scrollbar pseudo-elements, and when
+   the standard ones are set on an element it drops the pseudo-elements for
+   that scroller entirely. Applying both unconditionally therefore handed
+   .screen / .offcanvas / .hud a thin default bar and threw this design away
+   on exactly the scrollers that matter. Gating the standard syntax to
+   engines with no webkit support keeps one source of truth per engine. */
+@supports not selector(::-webkit-scrollbar) {
+	html,
+	.screen,
+	.offcanvas,
+	.hud {
+		scrollbar-width: thin;
+		scrollbar-color: var(--gold-lo) var(--carbon-2);
+	}
 }
-.screen,
-.offcanvas,
-.hud {
-	scrollbar-width: thin;
-	scrollbar-color: var(--gold-lo) transparent;
-}
+
 ::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
+	width: 10px;
+	height: 10px;
 }
 ::-webkit-scrollbar-track {
-	background: rgba(26, 23, 18, 0.4);
+	background: var(--carbon-2);
+}
+/* the channel's hairline edge — per axis, so a horizontal bar gets it on
+   the top rather than absurdly on the left */
+::-webkit-scrollbar-track:vertical {
+	border-left: 1px solid var(--hair);
+}
+::-webkit-scrollbar-track:horizontal {
+	border-top: 1px solid var(--hair);
 }
 ::-webkit-scrollbar-thumb {
 	background: var(--gold-lo);
-	border-radius: 2px;
+	/* transparent border + padding-box slims the bar to 4px, so it sits
+	   inset in the channel the way .molten sits inset in .crucible */
+	border: 3px solid transparent;
+	background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
 	background: var(--gold);
+	background-clip: padding-box;
 }
 
 /* chrome (non-content UI) shouldn't be text-selectable on long-press */
@@ -431,6 +463,13 @@ html {
 	   visible to auto, so any stray horizontal overflow became a real
 	   scrollbar competing with the swipe gesture */
 	overflow-x: clip;
+	/* pan-y must live HERE, on the scroller — not (only) on .viewport.
+	   Chrome's touch arbitration checks touch-action from the touched
+	   element up to the NEAREST scrollable ancestor, which is this
+	   element; .viewport sits above it and never gets a vote. With auto
+	   here, Chrome claimed every touch drag as a potential native scroll
+	   and pointercancel'd the swipe engine on the first move. */
+	touch-action: pan-y;
 	overscroll-behavior: contain;
 	padding: 14px 18px 28px;
 }
@@ -452,7 +491,8 @@ html {
 	background: var(--hair);
 }
 .eyebrow .tri,
-.deck-eyebrow .tri {
+.deck-eyebrow .tri,
+.pv-tag .tri {
 	width: 0;
 	height: 0;
 	flex: none;
@@ -2246,6 +2286,33 @@ body.boot-s2 .gauge {
 }
 
 /* ============================================================
+   DESKTOP PREVIEW — geometry tokens + the hidden frame layer.
+   Inert until html.preview is set AND the viewport is ≥ 992px
+   (the rules live in their own block below the landing page).
+   --pv-w is the single knob the size picker turns: app.js writes
+   it as an inline style on <html>, which outranks this default.
+   ============================================================ */
+:root {
+	--pv-w: 412px; /* Pixel-class logical width */
+	--pv-bar: 44px; /* toolbar strip along the top */
+	--pv-bar-max: 1160px; /* content cap — the rail itself stays full-bleed */
+	/* Height is CLAMPED so a 1440px-tall monitor can't pretend to be a
+	   phone. The shell is height:100dvh by design and the whole point of
+	   the fixed layout is that content fits a PHONE's height — an
+	   unclamped column would misrepresent exactly what we came to check. */
+	--pv-h: min(calc(100dvh - var(--pv-bar) - 48px), 880px);
+	/* Frame origin. This reproduces what .deck's flex centering computes,
+	   so the bezel lands exactly on the app it is framing. */
+	--pv-y: calc(var(--pv-bar) + (100dvh - var(--pv-bar) - var(--pv-h)) / 2);
+	--pv-x: calc((100vw - var(--pv-w)) / 2);
+	--pv-b: calc(100dvh - var(--pv-y) - var(--pv-h)); /* gap below the frame */
+}
+
+.pv {
+	display: none;
+}
+
+/* ============================================================
    DESKTOP (≥ 992px) — landing page only. The app is phone-only
    (localStorage, no accounts): desktop just sends you to your
    phone. The functional app is hidden entirely.
@@ -2383,6 +2450,221 @@ body.boot-s2 .gauge {
 		text-decoration: none;
 	}
 	.deck-legal a:hover {
+		color: var(--gold);
+	}
+}
+
+/* ============================================================
+   DESKTOP PREVIEW (≥ 992px + html.preview) — reveal the phone
+   shell inside a clamped, phone-sized frame instead of the
+   landing page.
+
+   Every selector is prefixed .preview, so it outranks the landing
+   rules above on specificity alone: nothing up there had to be
+   rewritten, and deleting this block removes the feature whole.
+
+   The overlays (.scrim / .offcanvas / .hud / .toast) are body-level
+   and position:fixed, so they anchor to the WINDOW, not the frame.
+   A transformed wrapper would contain them, but the 100dvh / 84vw /
+   86vh inside them would still resolve against the window — so they
+   would need these same overrides anyway. Hence no DOM wrapper:
+   just arithmetic off the --pv-* tokens.
+   ============================================================ */
+@media (min-width: 992px) {
+	/* the frame is the only viewport now — the page itself must not scroll.
+	   This is why .preview goes on <html> and not <body> like marks-right /
+	   compact: the lock has to reach the root element. */
+	html.preview,
+	html.preview body {
+		height: 100%;
+		overflow: hidden;
+	}
+
+	.preview .deck-side,
+	.preview .deck-footer {
+		display: none;
+	}
+	/* .deck keeps the landing block's flex centering; the top padding is what
+	   pushes the frame clear of the toolbar. box-sizing is border-box
+	   globally, so this lands on exactly the --pv-y math above. */
+	.preview .deck {
+		min-height: 100dvh;
+		padding: var(--pv-bar) 0 0;
+	}
+	.preview .app {
+		display: flex;
+		flex: none;
+		width: var(--pv-w);
+		max-width: none;
+		height: var(--pv-h);
+	}
+
+	/* ---------- overlays: re-anchored from the window to the frame ---------- */
+	.preview .offcanvas {
+		left: var(--pv-x);
+		top: var(--pv-y);
+		bottom: var(--pv-b);
+		width: calc(var(--pv-w) * 0.84);
+	}
+	.preview .hud {
+		bottom: var(--pv-b);
+		max-width: var(--pv-w);
+		max-height: calc(var(--pv-h) * 0.86);
+	}
+	.preview .hud-loadout {
+		max-height: calc(var(--pv-h) * 0.94);
+		min-height: calc(var(--pv-h) * 0.6);
+	}
+	/* the centred dialog wants the FRAME's midline, which sits half a
+	   toolbar lower than the window's */
+	.preview .hud-confirm {
+		top: calc(var(--pv-y) + var(--pv-h) / 2);
+		max-width: calc(var(--pv-w) - 36px);
+	}
+	.preview .toast {
+		bottom: calc(var(--pv-b) + 100px);
+	}
+	/* .scrim deliberately stays full-window: it frames the phone against a
+	   dimmed desktop AND keeps click-anywhere-outside-to-close working. */
+
+	/* ---------- the frame layer ---------- */
+	.preview .pv {
+		display: block;
+		position: fixed;
+		inset: 0;
+		z-index: 30; /* over the toast (20), under the boot catcher (40) */
+		pointer-events: none;
+	}
+	.pv-bezel {
+		position: fixed;
+		top: var(--pv-y);
+		left: var(--pv-x);
+		width: var(--pv-w);
+		height: var(--pv-h);
+		border: 1px solid var(--hair-2);
+		/* spotlight: one shadow dims the whole desktop around the frame.
+		   Deliberately no clip-path here — clipping would eat the shadow. */
+		box-shadow: 0 0 0 100vmax rgba(4, 3, 2, 0.55);
+	}
+	/* corner brackets — same grammar as .deck-qr::before */
+	.pv-bezel::before,
+	.pv-bezel::after {
+		content: "";
+		position: absolute;
+		width: 18px;
+		height: 18px;
+	}
+	.pv-bezel::before {
+		left: -1px;
+		top: -1px;
+		border-left: 2px solid var(--gold);
+		border-top: 2px solid var(--gold);
+	}
+	.pv-bezel::after {
+		right: -1px;
+		bottom: -1px;
+		border-right: 2px solid var(--gold);
+		border-bottom: 2px solid var(--gold);
+	}
+
+	.pv-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: var(--pv-bar);
+		pointer-events: auto; /* .pv is click-through; the bar is not */
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 18px;
+		/* The rail stays full-bleed — a HUD frame that stops short of the
+		   screen edge reads as a floating chip, not chrome. It is the
+		   CONTENT that gets capped: this padding grows with the viewport so
+		   the content box never exceeds --pv-bar-max, which stops the three
+		   groups being flung to opposite corners of a 4K monitor. No wrapper
+		   element needed: percentage padding resolves against the containing
+		   block, which for a fixed element is the viewport — and the bar
+		   spans it, so 100% is also the bar's own width. */
+		padding: 0 max(18px, calc((100% - var(--pv-bar-max)) / 2));
+		background: linear-gradient(180deg, var(--carbon), rgba(11, 10, 8, 0.9));
+		border-bottom: 1px solid var(--hair);
+	}
+	.pv-tag {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		font-size: 10.5px;
+		letter-spacing: 0.3em;
+		text-transform: uppercase;
+		color: var(--faint);
+		white-space: nowrap;
+	}
+	.pv-tag b {
+		color: var(--gold);
+		font-weight: 500;
+		letter-spacing: 0.16em;
+	}
+
+	/* segmented width picker — .tierbtn's chamfered parallelogram, shrunk */
+	.pv-size {
+		display: flex;
+		gap: 4px;
+	}
+	.pv-size button {
+		min-width: 54px;
+		min-height: 28px;
+		font-family: var(--disp);
+		font-weight: 700;
+		font-size: 11px;
+		letter-spacing: 0.14em;
+		color: var(--dim);
+		border: 1px solid var(--hair-2);
+		clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+	}
+	.pv-size button:hover {
+		color: var(--gold);
+	}
+	.pv-size button[aria-pressed="true"] {
+		color: #1c0f02;
+		background: linear-gradient(180deg, #f6c46a, #d8952e);
+		border-color: transparent;
+	}
+
+	.pv-exit {
+		min-height: 28px;
+		padding: 0 12px;
+		font-size: 10.5px;
+		letter-spacing: 0.26em;
+		text-transform: uppercase;
+		color: var(--dim);
+		border: 1px solid var(--hair-2);
+		clip-path: polygon(
+			8px 0,
+			100% 0,
+			100% calc(100% - 8px),
+			calc(100% - 8px) 100%,
+			0 100%,
+			0 8px
+		);
+	}
+	.pv-exit:hover {
+		color: var(--gold);
+		border-color: var(--gold-lo);
+	}
+
+	/* the QR panel is the trigger — let it feel like one */
+	.deck-qr {
+		transition: border-color 0.2s;
+	}
+	.deck-qr:hover {
+		border-color: var(--gold-lo);
+	}
+	.deck-qr-cap em {
+		font-style: normal;
+		color: var(--faint);
+	}
+	.deck-qr:hover .deck-qr-cap em {
 		color: var(--gold);
 	}
 }

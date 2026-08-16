@@ -43,7 +43,7 @@ import {
 } from "./sound.js";
 import * as fx from "./fx.js";
 
-const APP_VERSION = "v1.2.6";
+const APP_VERSION = "v1.2.8";
 
 /* ---------- state ---------- */
 let state = storage.load();
@@ -1496,6 +1496,117 @@ function dayTick() {
 }
 
 /* ============================================================
+   DESKTOP PREVIEW (≥ 992px)
+   On desktop the app shell is display:none and the deck is a
+   deploy-to-your-phone landing page. This reveals the shell inside
+   a clamped, phone-sized frame so the phone UI can be inspected on
+   a big screen. It is a REVEAL, not a boot: the app has been
+   rendering behind the landing page the whole time, which is why
+   nothing here touches state or rendering.
+
+   The frame only EXISTS at ≥ 992px — below that the CSS drops the
+   whole layer by itself, so none of this needs to undo anything
+   when the window narrows.
+
+   Preview state lives in the URL hash, deliberately NOT in
+   storage.js: that blob gets exported as JSON and imported onto the
+   phone, and a desktop-only view preference has no business riding
+   along. The hash also survives a reload (which matters while
+   developing) and makes the browser Back button a free exit.
+     #preview      → frame at the default width
+     #preview=360  → frame at one of PV_WIDTHS
+   ============================================================ */
+const PV_WIDTHS = [360, 412, 480];
+const PV_DEFAULT_W = 412; /* Pixel-class logical width */
+let pvWidth = PV_DEFAULT_W;
+
+function previewOn() {
+	return document.documentElement.classList.contains("preview");
+}
+
+/* null when this is not a preview hash, else the width it asks for */
+function previewFromHash() {
+	const m = /^#preview(?:=(\d+))?$/.exec(location.hash);
+	if (!m) return null;
+	const w = parseInt(m[1], 10);
+	return PV_WIDTHS.includes(w) ? w : PV_DEFAULT_W;
+}
+function previewHash(w) {
+	return w === PV_DEFAULT_W ? "#preview" : `#preview=${w}`;
+}
+
+/* live px readout in the toolbar — the frame's height is derived from the
+   window, so measuring is the only way to know it */
+function syncPreviewDims() {
+	if (!previewOn()) return;
+	const r = document.querySelector(".app").getBoundingClientRect();
+	$("pvDims").textContent = `${Math.round(r.width)} × ${Math.round(r.height)}`;
+}
+
+function setPreviewWidth(w, { push = true } = {}) {
+	pvWidth = w;
+	/* inline on <html> — outranks the :root default in styles.css */
+	document.documentElement.style.setProperty("--pv-w", w + "px");
+	document
+		.querySelectorAll(".pv-size button")
+		.forEach((b) =>
+			b.setAttribute("aria-pressed", String(Number(b.dataset.w) === w)),
+		);
+	/* replaceState, not push: flicking through widths must not stack up
+	   history entries for the Back button to chew through */
+	if (push && previewOn()) history.replaceState(null, "", previewHash(w));
+	syncPreviewDims();
+}
+
+function setPreview(on, { push = true, silent = false } = {}) {
+	if (on === previewOn()) return;
+	document.documentElement.classList.toggle("preview", on);
+	if (push)
+		history.pushState(
+			null,
+			"",
+			on ? previewHash(pvWidth) : location.pathname + location.search,
+		);
+	if (on) {
+		syncPreviewDims();
+		/* the boot sequence already ran into a hidden shell, so the reveal
+		   would otherwise be inert — re-decode the title for the power-on */
+		if (!silent) fx.decode(document.querySelector(".brand b"));
+	}
+	if (!silent) blip("ui");
+}
+
+function initPreview() {
+	$("previewBtn").addEventListener("click", () => setPreview(true));
+	$("pvExit").addEventListener("click", () => setPreview(false));
+	document.querySelectorAll(".pv-size button").forEach((b) =>
+		b.addEventListener("click", () => {
+			blip("nav");
+			setPreviewWidth(Number(b.dataset.w));
+		}),
+	);
+
+	/* Back / Forward and hand-edited URLs: the hash is the source of truth,
+	   so both events just re-read it. Listening to the pair is belt and
+	   braces — which of them a fragment navigation fires varies, and the
+	   setters no-op when nothing actually changed. */
+	const fromUrl = () => {
+		const w = previewFromHash();
+		if (w !== null) setPreviewWidth(w, { push: false });
+		setPreview(w !== null, { push: false });
+	};
+	window.addEventListener("popstate", fromUrl);
+	window.addEventListener("hashchange", fromUrl);
+	window.addEventListener("resize", syncPreviewDims);
+
+	/* restore from the URL on load — silent, because the boot sequence is
+	   already running its own entrance on this very paint */
+	const w = previewFromHash();
+	setPreviewWidth(w === null ? PV_DEFAULT_W : w, { push: false });
+	if (w !== null) setPreview(true, { push: false, silent: true });
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 function init() {
@@ -1508,6 +1619,7 @@ function init() {
 	);
 	initSwipe();
 	initHeadHide();
+	initPreview();
 
 	/* panels */
 	$("systemBtn").addEventListener("click", () => {
@@ -1581,7 +1693,13 @@ function init() {
 			closeLoadout();
 			return;
 		}
-		if (isOpen("systemPanel")) closeSystem();
+		if (isOpen("systemPanel")) {
+			closeSystem();
+			return;
+		}
+		/* last in the chain on purpose: Escape empties the overlay stack
+		   first and only leaves the desktop preview once nothing is open */
+		if (previewOn()) setPreview(false);
 	});
 
 	/* import file picker */

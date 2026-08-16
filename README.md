@@ -7,7 +7,22 @@ Discipline* by Victor Pride. Full build specification in [SPEC.md](SPEC.md)
 (the spec still governs the tier/streak/protocol math; navigation and
 presentation evolved past it: swipeable tabs, offcanvas System menu,
 bottom-sheet Loadout, mp3 soundboard — see [SOUNDS.md](SOUNDS.md) — and a
-desktop view that is only a deploy-to-phone landing page).
+desktop view that is a deploy-to-phone landing page, with an opt-in preview
+mode that reveals the phone shell inside a clamped phone-sized frame).
+
+## Desktop preview mode
+
+The app shell is `display:none` above 992px — desktop gets the landing page.
+Clicking the QR panel (or loading `/#preview`) reveals the shell inside a
+simulated phone frame with a width picker (360 / 412 / 480) and a live px
+readout. Leave it with the toolbar's Exit button, `Esc`, or the browser's
+Back button.
+
+The state lives in the URL hash, **never** in `storage.js` — that blob is
+exported as JSON and imported onto the phone, and a desktop-only view
+preference must not ride along. All of it is behind `html.preview` inside a
+single self-contained `@media (min-width: 992px)` block in `styles.css`;
+deleting that block removes the feature whole.
 
 GitHub: https://github.com/dahlskebank/30days
 
