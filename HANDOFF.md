@@ -78,9 +78,10 @@ Std tasks carry fixed `std_*` ids so "Restore standard" can merge.
 
 ## Deploy (Domeneshop)
 
-- `./deploy.sh _site` (lftp mirror --reverse --delete, config in `.env`:
-  dxdno@login.domeneshop.no → /home/6/d/dxdno/kiande.com, key
-  `/e/www/dd_db_domeneshop`). ALWAYS `DRY_RUN=1 ./deploy.sh _site` first.
+- `./deploy.sh _site` (lftp mirror --reverse --delete). Host, user, remote
+  path and key live in the local `.env` only (keys listed in `.env.example`) —
+  never write them into tracked files: this repo is public.
+  ALWAYS `DRY_RUN=1 ./deploy.sh _site` first.
 - Bump `CACHE` in sw.js (and `APP_VERSION` in app.js + footVersion in
   index.html) per deploy.
 - HTTP caching is currently DISABLED in `.htaccess` (global no-cache)
